@@ -1,0 +1,43 @@
+{{define "index-content"}}
+<section class="welcome">
+    <h2>Welcome to OurChat!</h2>
+    <p>A simple, secure messaging platform.</p>
+
+    {{if .LoggedIn}}
+        <div class="dashboard">
+            <h3>Your Dashboard</h3>
+            <p>Welcome back! You can start chatting with your contacts or explore new connections.</p>
+            <!-- Chat functionality will be added here later -->
+            <div class="placeholder">
+                <p>Chat functionality coming soon!</p>
+            </div>
+        </div>
+    {{else}}
+        <div class="cta">
+            <p>Get started by creating an account or logging in.</p>
+            <div class="button-group">
+                <a href="/register" class="button primary">Register</a>
+                <a href="/login" class="button secondary">Login</a>
+            </div>
+        </div>
+    {{end}}
+</section>
+
+<section class="features">
+    <h2>Features</h2>
+    <div class="feature-grid">
+        <div class="feature">
+            <h3>Real-time Messaging</h3>
+            <p>Chat with friends and colleagues in real-time.</p>
+        </div>
+        <div class="feature">
+            <h3>Secure Communications</h3>
+            <p>Your messages are encrypted and secure.</p>
+        </div>
+        <div class="feature">
+            <h3>Easy to Use</h3>
+            <p>Simple, intuitive interface makes chatting a breeze.</p>
+        </div>
+    </div>
+</section>
+{{end}}
