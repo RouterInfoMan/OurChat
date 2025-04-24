@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/RouterInfoMan/OurChat/internal/api"
+	"OurChat/internal/api"
 )
 
 func main() {
