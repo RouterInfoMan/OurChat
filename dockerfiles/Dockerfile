@@ -1,21 +1,18 @@
-FROM golang:1.22 AS builder
+FROM golang:1.23-alpine AS builder
 
 WORKDIR /app/backend
 
+RUN apk add --no-cache \
+    gcc \
+    musl-dev \
+    pkgconfig \
+    sqlite-dev \
+
 COPY backend/go.mod backend/go.sum ./
 
-# Download dependencies
 RUN go mod download
 
-# Copy the backend source code
 COPY backend/ ./
-
-# Install build tools for CGO and SQLite support
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    gcc \
-    libc6-dev \
-    pkg-config \
-    && rm -rf /var/lib/apt/lists/*
 
 RUN CGO_ENABLED=1 GOOS=linux go build -o ourchat ./cmd/server
 
