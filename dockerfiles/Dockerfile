@@ -1,18 +1,23 @@
 FROM golang:1.22 AS builder
 
-WORKDIR /app
+WORKDIR /app/backend
 
-# Copy go.mod and go.sum files
-COPY go.mod go.sum ./
+COPY backend/go.mod backend/go.sum ./
 
 # Download dependencies
 RUN go mod download
 
-# Copy the source code
-COPY . .
+# Copy the backend source code
+COPY backend/ ./
 
-# Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -o ourchat ./cmd/server
+# Install build tools for CGO and SQLite support
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libc6-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN CGO_ENABLED=1 GOOS=linux go build -o ourchat ./cmd/server
 
 
 FROM node:23-alpine AS frontend-builder
@@ -26,20 +31,22 @@ COPY frontend/ ./
 RUN npm run build
 
 
-# Use a small alpine image for the final container
 FROM alpine:latest
 
 WORKDIR /app
 
-# Install ca-certificates for HTTPS requests
-RUN apk --no-cache add ca-certificates
+# Install runtime dependencies for SQLite and SSL
+RUN apk --no-cache add \
+    ca-certificates \
+    sqlite \
+    sqlite-libs
 
 # Copy the binary from the builder stage
-COPY --from=builder /app/ourchat .
+COPY --from=builder /app/backend/ourchat .
 
-# Copy templates and static files
-COPY --from=builder /app/templates ./templates
-COPY --from=builder /app/static ./static
+# Copy templates and static files from the backend folder
+COPY --from=builder /app/backend/templates ./templates
+COPY --from=builder /app/backend/static ./static
 COPY --from=frontend-builder /app/build ./static-frontend
 
 # Expose the application port
