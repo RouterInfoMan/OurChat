@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -33,7 +34,13 @@ func NewServer() *Server {
 func (s *Server) SetupRoutes() {
 	// Serve static files
 	s.Router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
-	s.Router.PathPrefix("/static-frontend/").Handler(http.StripPrefix("/static-frontend/", http.FileServer(http.Dir("static-frontend/"))))
+	s.Router.PathPrefix("/static-frontend/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/static-frontend/_app/") {
+			http.StripPrefix("/static-frontend/", http.FileServer(http.Dir("static-frontend/"))).ServeHTTP(w, r)
+			return
+		}
+		http.ServeFile(w, r, "static-frontend/index.html")
+	})
 
 	// Page routers - only GET handlers for now
 	s.Router.HandleFunc("/", s.handleIndex).Methods("GET")
