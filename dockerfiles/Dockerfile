@@ -6,7 +6,7 @@ RUN apk add --no-cache \
     gcc \
     musl-dev \
     pkgconfig \
-    sqlite-dev \
+    sqlite-dev
 
 COPY backend/go.mod backend/go.sum ./
 
