@@ -40,12 +40,26 @@ func (db *DB) createTables() error {
 		email TEXT NOT NULL UNIQUE,
 		password TEXT NOT NULL,
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	);
-	`
+	);`
+	// TODO Change receiver_id to be a foreign key to chats table
+	messagesTable := `
+	CREATE TABLE IF NOT EXISTS messages (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		sender_id INTEGER NOT NULL,
+		receiver_id INTEGER NOT NULL,
+		content TEXT NOT NULL,
+		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (sender_id) REFERENCES users(id),
+		FOREIGN KEY (receiver_id) REFERENCES users(id)
+	);`
 
 	_, err := db.Exec(usersTable)
 	if err != nil {
 		return fmt.Errorf("failed to create users table: %w", err)
+	}
+	_, err = db.Exec(messagesTable)
+	if err != nil {
+		return fmt.Errorf("failed to create messages table: %w", err)
 	}
 
 	log.Println("Users table created successfully")
@@ -96,4 +110,34 @@ func (db *DB) GetUserByEmail(email string) (*models.User, error) {
 	}
 	log.Println("User retrieved successfully")
 	return user, nil
+}
+func (db *DB) GetMessagesByUserID(userID int) ([]models.Message, error) {
+	query := `SELECT id, sender_id, receiver_id, content, created_at FROM messages WHERE sender_id = ? OR receiver_id = ?`
+	rows, err := db.Query(query, userID, userID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get messages: %w", err)
+	}
+	defer rows.Close()
+
+	var messages []models.Message
+	for rows.Next() {
+		var message models.Message
+		if err := rows.Scan(&message.ID, &message.SenderID, &message.ReceiverID, &message.Content, &message.CreatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan message: %w", err)
+		}
+		messages = append(messages, message)
+	}
+	log.Println("Messages retrieved successfully")
+	return messages, nil
+}
+func (db *DB) CreateMessage(senderID, receiverID int, content string) error {
+	query := `
+	INSERT INTO messages (sender_id, receiver_id, content, created_at)
+	VALUES (?, ?, ?, ?)`
+	_, err := db.Exec(query, senderID, receiverID, content, time.Now())
+	if err != nil {
+		return fmt.Errorf("failed to create message: %w", err)
+	}
+	log.Println("Message created successfully")
+	return nil
 }
