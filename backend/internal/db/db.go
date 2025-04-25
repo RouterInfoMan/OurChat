@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
+	"path/filepath"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -16,6 +18,13 @@ type DB struct {
 }
 
 func NewDB(dbPath string) (*DB, error) {
+	dbDir := filepath.Dir(dbPath)
+	if _, err := os.Stat(dbDir); os.IsNotExist(err) {
+		if err := os.MkdirAll(dbDir, os.ModePerm); err != nil {
+			return nil, fmt.Errorf("failed to create database directory: %w", err)
+		}
+	}
+
 	db, err := sql.Open("sqlite3", dbPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
@@ -57,12 +66,14 @@ func (db *DB) createTables() error {
 	if err != nil {
 		return fmt.Errorf("failed to create users table: %w", err)
 	}
+	log.Println("Users table created successfully")
+
 	_, err = db.Exec(messagesTable)
 	if err != nil {
 		return fmt.Errorf("failed to create messages table: %w", err)
 	}
+	log.Println("Messages table created successfully")
 
-	log.Println("Users table created successfully")
 	return nil
 }
 func (db *DB) Close() error {
