@@ -130,6 +130,27 @@ func (db *DB) GetMessagesByUserID(userID int) ([]models.Message, error) {
 	log.Println("Messages retrieved successfully")
 	return messages, nil
 }
+
+func (db *DB) GetMessagesByUserToUser(userID1, userID2 int) ([]models.Message, error) {
+	query := `SELECT id, sender_id, receiver_id, content, created_at FROM messages WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)`
+	rows, err := db.Query(query, userID1, userID2, userID2, userID1)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get messages: %w", err)
+	}
+	defer rows.Close()
+
+	var messages []models.Message
+	for rows.Next() {
+		var message models.Message
+		if err := rows.Scan(&message.ID, &message.SenderID, &message.ReceiverID, &message.Content, &message.CreatedAt); err != nil {
+			return nil, fmt.Errorf("failed to scan message: %w", err)
+		}
+		messages = append(messages, message)
+	}
+	log.Println("Messages retrieved successfully")
+	return messages, nil
+}
+
 func (db *DB) CreateMessage(senderID, receiverID int, content string) error {
 	query := `
 	INSERT INTO messages (sender_id, receiver_id, content, created_at)

@@ -112,7 +112,42 @@ func TestGetMessagesByUserID(t *testing.T) {
 	assert.Equal(t, 1, len(messages))
 	assert.Equal(t, "hello, world!", messages[0].Content)
 }
+func TestGetMessagesByUserToUser(t *testing.T) {
+	// Temporary database file for testing
+	dbPath := "./test.db"
+	defer func() {
+		// Clean up test database after the test is done
+		if err := removeFile(dbPath); err != nil {
+			t.Errorf("failed to delete test db: %v", err)
+		}
+	}()
 
+	// Create a new DB instance
+	database, err := NewDB(dbPath)
+	assert.NoError(t, err)
+
+	// Create test users
+	err = database.CreateUser("user1", "user1@example.com", "password123")
+	assert.NoError(t, err)
+	err = database.CreateUser("user2", "user2@example.com", "password123")
+	assert.NoError(t, err)
+
+	// Create test messages between the users
+	err = database.CreateMessage(1, 2, "Hello from user1 to user2!")
+	assert.NoError(t, err)
+	err = database.CreateMessage(2, 1, "Hello from user2 to user1!")
+	assert.NoError(t, err)
+
+	// Fetch messages between user1 and user2
+	messages, err := database.GetMessagesByUserToUser(1, 2)
+	assert.NoError(t, err)
+	assert.NotNil(t, messages)
+	assert.Equal(t, 2, len(messages))
+
+	// Validate the content of the messages
+	assert.Equal(t, "Hello from user1 to user2!", messages[0].Content)
+	assert.Equal(t, "Hello from user2 to user1!", messages[1].Content)
+}
 func removeFile(dbPath string) error {
 	return os.Remove(dbPath)
 }
