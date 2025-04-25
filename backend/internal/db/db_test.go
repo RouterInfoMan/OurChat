@@ -83,6 +83,36 @@ func TestGetUserByEmail(t *testing.T) {
 	assert.Equal(t, "testuser@example.com", user.Email)
 }
 
+func TestGetMessagesByUserID(t *testing.T) {
+	// Temporary database file for testing
+	dbPath := "./test.db"
+	defer func() {
+		// Clean up test database after the test is done
+		if err := removeFile(dbPath); err != nil {
+			t.Errorf("failed to delete test db: %v", err)
+		}
+	}()
+
+	// Create a new DB instance
+	database, err := NewDB(dbPath)
+	assert.NoError(t, err)
+
+	// Create a test user
+	err = database.CreateUser("testuser", "testuser@example.com", "password123")
+	assert.NoError(t, err)
+
+	// Create a test message
+	err = database.CreateMessage(1, 1, "hello, world!")
+	assert.NoError(t, err)
+
+	// Fetch messages by user ID
+	messages, err := database.GetMessagesByUserID(1)
+	assert.NoError(t, err)
+	assert.NotNil(t, messages)
+	assert.Equal(t, 1, len(messages))
+	assert.Equal(t, "hello, world!", messages[0].Content)
+}
+
 func removeFile(dbPath string) error {
 	return os.Remove(dbPath)
 }
