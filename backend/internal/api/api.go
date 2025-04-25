@@ -1,6 +1,7 @@
 package api
 
 import (
+	"OurChat/internal/db"
 	"html/template"
 	"log"
 	"net/http"
@@ -13,7 +14,11 @@ import (
 type Server struct {
 	Router    *mux.Router
 	Templates *template.Template
+	DB        *db.DB
 }
+
+// TODO After creating the configs
+// Load paths and envs from config file
 
 func NewServer() *Server {
 	// Create a new router
@@ -25,9 +30,15 @@ func NewServer() *Server {
 		log.Fatalf("Error parsing templates: %v", err)
 	}
 
+	database, err := db.NewDB("./data/ourchat.db")
+	if err != nil {
+		log.Fatalf("Error connecting to database: %v", err)
+	}
+
 	return &Server{
 		Router:    router,
 		Templates: templates,
+		DB:        database,
 	}
 }
 
