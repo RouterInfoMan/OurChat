@@ -4,8 +4,6 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"strings"
-	"time"
 
 	"OurChat/internal/api/handlers"
 	"OurChat/internal/api/middleware"
@@ -65,20 +63,31 @@ func NewServer() *Server {
 
 // SetupRoutes configures all the routes for the server
 func (s *Server) SetupRoutes() {
-	// Serve static files
-	s.Router.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir("static/"))))
-	s.Router.PathPrefix("/static-frontend/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/static-frontend/_app/") {
-			http.StripPrefix("/static-frontend/", http.FileServer(http.Dir("static-frontend/"))).ServeHTTP(w, r)
+	s.Router.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Construct the file path
+		filesRoot := "static-frontend"
+
+		if r.URL.Path == "/index" {
+			http.Redirect(w, r, "/", http.StatusFound)
 			return
 		}
-		http.ServeFile(w, r, "static-frontend/index.html")
-	})
 
-	// Page routes - only GET handlers for now
-	s.Router.HandleFunc("/", s.handleIndex).Methods("GET")
-	s.Router.HandleFunc("/login", s.handleLoginPage).Methods("GET")
-	s.Router.HandleFunc("/register", s.handleRegisterPage).Methods("GET")
+		// Check if the file exists
+		if _, err := http.Dir(filesRoot).Open(r.URL.Path); err != nil {
+			// If file not found, check for {file}.html
+			if _, err := http.Dir(filesRoot).Open(r.URL.Path + ".html"); err != nil {
+				// If file not found, serve 200.html
+				http.ServeFile(w, r, filesRoot+"/200.html")
+				return
+			}
+
+			http.ServeFile(w, r, filesRoot+r.URL.Path+".html")
+			return
+		}
+
+		// Serve the requested file
+		http.FileServer(http.Dir(filesRoot)).ServeHTTP(w, r)
+	})
 
 	// API Routes
 	api := s.Router.PathPrefix("/api").Subrouter()
@@ -106,47 +115,4 @@ func (s *Server) SetupRoutes() {
 	protected.HandleFunc("/chats/{chatID}/messages", s.MessageHandler.HandleSendMessage).Methods("POST")
 	protected.HandleFunc("/chats/{chatID}/messages/read", s.MessageHandler.HandleMarkMessagesAsRead).Methods("POST")
 	protected.HandleFunc("/chats/{chatID}/messages/search", s.MessageHandler.HandleSearchMessages).Methods("GET")
-}
-
-// Page template handlers
-
-func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	data := map[string]interface{}{
-		"Title":    "OurChat - Home",
-		"LoggedIn": false,
-		"Page":     "index",
-	}
-	s.renderTemplate(w, "layout.html", data)
-}
-
-func (s *Server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
-	data := map[string]interface{}{
-		"Title": "OurChat - Login",
-		"Page":  "login",
-	}
-	s.renderTemplate(w, "layout.html", data)
-}
-
-func (s *Server) handleRegisterPage(w http.ResponseWriter, r *http.Request) {
-	data := map[string]interface{}{
-		"Title": "OurChat - Register",
-		"Page":  "register",
-	}
-	s.renderTemplate(w, "layout.html", data)
-}
-
-// renderTemplate renders a template with the given data
-func (s *Server) renderTemplate(w http.ResponseWriter, tmpl string, data map[string]interface{}) {
-	// Set default content type
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-
-	// Add current year to data for footer
-	data["CurrentYear"] = time.Now().Year()
-
-	// Execute the template
-	err := s.Templates.ExecuteTemplate(w, tmpl, data)
-	if err != nil {
-		log.Printf("Error rendering template %s: %v", tmpl, err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
-	}
 }
