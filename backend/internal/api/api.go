@@ -63,6 +63,33 @@ func NewServer() *Server {
 
 // SetupRoutes configures all the routes for the server
 func (s *Server) SetupRoutes() {
+	// API Routes TEMP FIX
+	api := s.Router.PathPrefix("/api").Subrouter()
+
+	// Auth routes - no authentication required
+	api.HandleFunc("/register", s.AuthHandler.HandleRegister).Methods("POST")
+	api.HandleFunc("/login", s.AuthHandler.HandleLogin).Methods("POST")
+
+	// Protected routes - authentication required
+	protected := api.PathPrefix("").Subrouter()
+	protected.Use(s.AuthMiddleware.Middleware)
+
+	// User routes
+	protected.HandleFunc("/logout", s.AuthHandler.HandleLogout).Methods("POST")
+	protected.HandleFunc("/profile", s.UserHandler.HandleGetProfile).Methods("GET")
+	protected.HandleFunc("/profile", s.UserHandler.HandleUpdateProfile).Methods("PUT")
+
+	// Chat routes
+	protected.HandleFunc("/chats", s.ChatHandler.HandleGetChats).Methods("GET")
+	protected.HandleFunc("/chats", s.ChatHandler.HandleCreateChat).Methods("POST")
+	protected.HandleFunc("/chats/{chatID}", s.ChatHandler.HandleGetChat).Methods("GET")
+
+	// Message routes
+	protected.HandleFunc("/chats/{chatID}/messages", s.MessageHandler.HandleGetMessages).Methods("GET")
+	protected.HandleFunc("/chats/{chatID}/messages", s.MessageHandler.HandleSendMessage).Methods("POST")
+	protected.HandleFunc("/chats/{chatID}/messages/read", s.MessageHandler.HandleMarkMessagesAsRead).Methods("POST")
+	protected.HandleFunc("/chats/{chatID}/messages/search", s.MessageHandler.HandleSearchMessages).Methods("GET")
+
 	s.Router.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Construct the file path
 		filesRoot := "static-frontend"
@@ -89,30 +116,4 @@ func (s *Server) SetupRoutes() {
 		http.FileServer(http.Dir(filesRoot)).ServeHTTP(w, r)
 	})
 
-	// API Routes
-	api := s.Router.PathPrefix("/api").Subrouter()
-
-	// Auth routes - no authentication required
-	api.HandleFunc("/register", s.AuthHandler.HandleRegister).Methods("POST")
-	api.HandleFunc("/login", s.AuthHandler.HandleLogin).Methods("POST")
-
-	// Protected routes - authentication required
-	protected := api.PathPrefix("").Subrouter()
-	protected.Use(s.AuthMiddleware.Middleware)
-
-	// User routes
-	protected.HandleFunc("/logout", s.AuthHandler.HandleLogout).Methods("POST")
-	protected.HandleFunc("/profile", s.UserHandler.HandleGetProfile).Methods("GET")
-	protected.HandleFunc("/profile", s.UserHandler.HandleUpdateProfile).Methods("PUT")
-
-	// Chat routes
-	protected.HandleFunc("/chats", s.ChatHandler.HandleGetChats).Methods("GET")
-	protected.HandleFunc("/chats", s.ChatHandler.HandleCreateChat).Methods("POST")
-	protected.HandleFunc("/chats/{chatID}", s.ChatHandler.HandleGetChat).Methods("GET")
-
-	// Message routes
-	protected.HandleFunc("/chats/{chatID}/messages", s.MessageHandler.HandleGetMessages).Methods("GET")
-	protected.HandleFunc("/chats/{chatID}/messages", s.MessageHandler.HandleSendMessage).Methods("POST")
-	protected.HandleFunc("/chats/{chatID}/messages/read", s.MessageHandler.HandleMarkMessagesAsRead).Methods("POST")
-	protected.HandleFunc("/chats/{chatID}/messages/search", s.MessageHandler.HandleSearchMessages).Methods("GET")
 }
