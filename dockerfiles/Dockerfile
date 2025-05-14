@@ -46,6 +46,10 @@ COPY --from=builder /app/backend/templates ./templates
 COPY --from=builder /app/backend/static ./static
 COPY --from=frontend-builder /app/build ./static-frontend
 
+# Copy database migrations directory
+COPY --from=builder /app/backend/internal/db/migrations ./internal/db/migrations
+
+
 # Expose the application port
 EXPOSE 8080
 
