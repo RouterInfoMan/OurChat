@@ -34,6 +34,11 @@
 		goto('login');
 	}
 
+	function onLogout() {
+	localStorage.removeItem('jwt_token'); // Remove the JWT
+	goto('login'); // Redirect to login page	
+	}
+
 	// Funcție pentru navigare la pagina de register
 	function goToRegister() {
 		goto('register');
@@ -50,7 +55,7 @@
 		{#if true}
 			<div class="user-info">
 				<span class="username">Bine ai venit, {username}</span>
-				<button class="logout-btn" onclick={() => {}}>Logout</button>
+				<button class="logout-btn" onclick={onLogout}>Logout</button>
 			</div>
 		{/if}
 	</div>
