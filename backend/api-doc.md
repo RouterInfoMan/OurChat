@@ -5,6 +5,8 @@
   - [Register](#register)
   - [Login](#login)
   - [Logout](#logout)
+  - [Request Password Reset](#request-password-reset)
+  - [Reset Password](#reset-password)
 - [User](#user)
   - [Get Profile](#get-profile)
   - [Update Profile](#update-profile)
@@ -111,6 +113,61 @@ Logout and invalidate the current session.
 **Error Responses**:
 - **Code**: 401 Unauthorized (Invalid or missing token)
 - **Code**: 500 Internal Server Error
+
+### Request Password Reset
+
+Initiates the password reset process for a user.
+
+**URL**: `/api/request-password-reset`
+**Method**: `POST`
+**Auth required**: No
+
+**Request Body**:
+```json
+{
+  "email": "user@example.com"
+}
+```
+**Success Response**:
+- **Code**: 200 OK
+- **Content**:
+```json
+{
+  "message": "If your email is registered, you will receive a password reset link shortly",
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+**Error Responses**:
+- **Code**: 400 Bad Request (Invalid request or missing email)
+- **Code**: 500 Internal Server Error
+
+### Reset Password
+
+Resets a user's password using a valid reset token.
+
+**URL**: `/api/reset-password`
+**Method**: `POST`
+**Auth required**: No
+
+**Request Body**:
+```json
+{
+  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+  "new_password": "newSecurePassword123"
+}
+```
+**Success Response**:
+- **Code**: 200 OK
+- **Content**:
+```json
+{
+  "message": "Password has been reset successfully. Please login with your new password."
+}
+```
+**Error Responses**:
+- **Code**: 400 Bad Request (Invalid request, missing fields, weak password, or invalid/expired token)
+- **Code**: 500 Internal Server Error
+
 
 ## User
 
