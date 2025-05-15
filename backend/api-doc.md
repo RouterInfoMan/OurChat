@@ -13,6 +13,7 @@
   - [Get Chats](#get-chats)
   - [Create Chat](#create-chat)
   - [Get Chat](#get-chat)
+  - [Get Chat Members](#get-chat-members)
 - [Messages](#messages)
   - [Get Messages](#get-messages)
   - [Send Message](#send-message)

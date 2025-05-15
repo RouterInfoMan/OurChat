@@ -90,33 +90,6 @@ func (db *DB) GetChatByID(chatID int) (*models.Chat, error) {
 	return chat, nil
 }
 
-// GetUsersByChatID retrieves all users who are members of a specific chat
-func (db *DB) GetUsersByChatID(chatID int) ([]models.User, error) {
-	query := `
-	SELECT u.id, u.username, u.email, u.created_at, u.status
-	FROM users u
-	JOIN chat_members cm ON u.id = cm.user_id
-	WHERE cm.chat_id = ?`
-
-	rows, err := db.Query(query, chatID)
-	if err != nil {
-		return nil, fmt.Errorf("failed to get users: %w", err)
-	}
-	defer rows.Close()
-
-	var users []models.User
-	for rows.Next() {
-		var user models.User
-		if err := rows.Scan(&user.ID, &user.Username, &user.Email, &user.CreatedAt, &user.Status); err != nil {
-			return nil, fmt.Errorf("failed to scan user: %w", err)
-		}
-		users = append(users, user)
-	}
-
-	log.Println("Chat users retrieved successfully")
-	return users, nil
-}
-
 // GetDirectChatBetweenUsers finds or creates a direct chat between two users
 func (db *DB) GetDirectChatBetweenUsers(userID1, userID2 int) (int, error) {
 	// First try to find an existing direct chat between these users
