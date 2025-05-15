@@ -1,4 +1,5 @@
-<a href="dashboard">Dashboard</a>
-<a href="login">login</a>
-<a href="register">register</a>
-<a href="forgotPassword">forgortPassword</a>
+<script lang="ts">
+	import { goto } from "$app/navigation";
+
+    goto("/dashboard");
+</script>
