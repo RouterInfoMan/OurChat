@@ -9,7 +9,7 @@
 	onMount(async () => {
 		try {
 			// Încercăm să obținem informații despre utilizator
-			const response = await fetch('/dashboard', {
+			const response = await fetch('/api/profile', {
 				method: 'GET',
 				headers: {
 					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
@@ -25,7 +25,7 @@
 		} catch (error) {
 			console.error('Eroare la obținerea datelor utilizatorului:', error);
 			// În caz de eroare, delogăm utilizatorul
-			//onLogout();
+			onLogout();
 		}
 	});
 
@@ -35,8 +35,8 @@
 	}
 
 	function onLogout() {
-	localStorage.removeItem('jwt_token'); // Remove the JWT
-	goto('login'); // Redirect to login page	
+		localStorage.removeItem('jwt_token'); // Remove the JWT
+		goto('login'); // Redirect to login page
 	}
 
 	// Funcție pentru navigare la pagina de register
