@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"OurChat/internal/models"
@@ -149,4 +150,43 @@ func (db *DB) UpdateUserProfile(userID int, updates map[string]interface{}) erro
 	}
 
 	return nil
+}
+
+// GetUsersByIDs retrieves basic information for a list of user IDs
+func (db *DB) GetUsersByIDs(userIDs []int) (map[int]models.UserBasic, error) {
+	if len(userIDs) == 0 {
+		return make(map[int]models.UserBasic), nil
+	}
+
+	// Create placeholders for SQL query (?, ?, ?, etc.)
+	placeholders := strings.Repeat("?,", len(userIDs))
+	placeholders = placeholders[:len(placeholders)-1] // Remove trailing comma
+
+	query := fmt.Sprintf(`
+    SELECT id, username, status
+    FROM users
+    WHERE id IN (%s)`, placeholders)
+
+	// Convert userIDs to []interface{} for db.Query
+	args := make([]interface{}, len(userIDs))
+	for i, id := range userIDs {
+		args[i] = id
+	}
+
+	rows, err := db.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get users: %w", err)
+	}
+	defer rows.Close()
+
+	users := make(map[int]models.UserBasic)
+	for rows.Next() {
+		var user models.UserBasic
+		if err := rows.Scan(&user.ID, &user.Username, &user.Status); err != nil {
+			return nil, fmt.Errorf("failed to scan user: %w", err)
+		}
+		users[user.ID] = user
+	}
+
+	return users, nil
 }
