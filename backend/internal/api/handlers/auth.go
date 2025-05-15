@@ -192,3 +192,107 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	json.NewEncoder(w).Encode(response)
 }
+
+// RequestPasswordResetRequest represents the password reset request
+type RequestPasswordResetRequest struct {
+	Email string `json:"email"`
+}
+
+// HandleRequestPasswordReset initiates the password reset process
+func (h *AuthHandler) HandleRequestPasswordReset(w http.ResponseWriter, r *http.Request) {
+	// Parse request body
+	var req RequestPasswordResetRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	// Validate input
+	if req.Email == "" {
+		http.Error(w, "Email is required", http.StatusBadRequest)
+		return
+	}
+
+	// Find user by email
+	user, err := h.DB.RequestPasswordReset(req.Email)
+
+	// Always return success, even if email doesn't exist
+	// This prevents email enumeration attacks
+	if err != nil {
+		log.Printf("Password reset request for non-existent email %s: %v", req.Email, err)
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		json.NewEncoder(w).Encode(map[string]string{
+			"message": "If your email is registered, you will receive a password reset link shortly",
+		})
+		return
+	}
+
+	// Generate reset token
+	token, err := utils.GeneratePasswordResetToken(user)
+	if err != nil {
+		log.Printf("Failed to generate reset token: %v", err)
+		http.Error(w, "Failed to process request", http.StatusInternalServerError)
+		return
+	}
+
+	// Return success response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"message":     "If your email is registered, you will receive a password reset link shortly",
+		"reset_token": token,
+	})
+}
+
+// ResetPasswordRequest represents the password reset request with token
+type ResetPasswordRequest struct {
+	Token       string `json:"token"`
+	NewPassword string `json:"new_password"`
+}
+
+// HandleResetPassword resets a user's password using a valid token
+func (h *AuthHandler) HandleResetPassword(w http.ResponseWriter, r *http.Request) {
+	// Parse request body
+	var req ResetPasswordRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Invalid request", http.StatusBadRequest)
+		return
+	}
+
+	// Validate input
+	if req.Token == "" || req.NewPassword == "" {
+		http.Error(w, "Token and new password are required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate token and get user ID
+	userID, err := utils.ValidatePasswordResetToken(req.Token, h.DB)
+	if err != nil {
+		log.Printf("Invalid password reset token: %v", err)
+		http.Error(w, "Invalid or expired reset token", http.StatusBadRequest)
+		return
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("Failed to hash password: %v", err)
+		http.Error(w, "Failed to process request", http.StatusInternalServerError)
+		return
+	}
+
+	// Reset password and rotate JWT key
+	if err := h.DB.ResetPassword(userID, string(hashedPassword)); err != nil {
+		log.Printf("Failed to reset password: %v", err)
+		http.Error(w, "Failed to reset password", http.StatusInternalServerError)
+		return
+	}
+
+	// Return success response
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"message": "Password has been reset successfully. Please login with your new password.",
+	})
+}

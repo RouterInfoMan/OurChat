@@ -68,6 +68,8 @@ func (s *Server) SetupRoutes() {
 	// Auth routes - no authentication required
 	api.HandleFunc("/register", s.AuthHandler.HandleRegister).Methods("POST")
 	api.HandleFunc("/login", s.AuthHandler.HandleLogin).Methods("POST")
+	api.HandleFunc("/request-password-reset", s.AuthHandler.HandleRequestPasswordReset).Methods("POST")
+	api.HandleFunc("/reset-password", s.AuthHandler.HandleResetPassword).Methods("POST")
 
 	// Protected routes - authentication required
 	protected := api.PathPrefix("").Subrouter()
