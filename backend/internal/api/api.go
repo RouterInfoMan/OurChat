@@ -3,7 +3,6 @@ package api
 import (
 	"html/template"
 	"log"
-	"net/http"
 
 	"OurChat/internal/api/handlers"
 	"OurChat/internal/api/middleware"
@@ -94,30 +93,30 @@ func (s *Server) SetupRoutes() {
 	// Helper routes
 	protected.HandleFunc("/users", s.UserHandler.HandleGetUsersByIDs).Methods("GET", "POST")
 
-	s.Router.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Construct the file path
-		filesRoot := "static-frontend"
+	// s.Router.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// 	// Construct the file path
+	// 	filesRoot := "static-frontend"
 
-		if r.URL.Path == "/index" {
-			http.Redirect(w, r, "/", http.StatusFound)
-			return
-		}
+	// 	if r.URL.Path == "/index" {
+	// 		http.Redirect(w, r, "/", http.StatusFound)
+	// 		return
+	// 	}
 
-		// Check if the file exists
-		if _, err := http.Dir(filesRoot).Open(r.URL.Path); err != nil {
-			// If file not found, check for {file}.html
-			if _, err := http.Dir(filesRoot).Open(r.URL.Path + ".html"); err != nil {
-				// If file not found, serve 200.html
-				http.ServeFile(w, r, filesRoot+"/200.html")
-				return
-			}
+	// 	// Check if the file exists
+	// 	if _, err := http.Dir(filesRoot).Open(r.URL.Path); err != nil {
+	// 		// If file not found, check for {file}.html
+	// 		if _, err := http.Dir(filesRoot).Open(r.URL.Path + ".html"); err != nil {
+	// 			// If file not found, serve 200.html
+	// 			http.ServeFile(w, r, filesRoot+"/200.html")
+	// 			return
+	// 		}
 
-			http.ServeFile(w, r, filesRoot+r.URL.Path+".html")
-			return
-		}
+	// 		http.ServeFile(w, r, filesRoot+r.URL.Path+".html")
+	// 		return
+	// 	}
 
-		// Serve the requested file
-		http.FileServer(http.Dir(filesRoot)).ServeHTTP(w, r)
-	})
+	// 	// Serve the requested file
+	// 	http.FileServer(http.Dir(filesRoot)).ServeHTTP(w, r)
+	// })
 
 }
