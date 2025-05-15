@@ -76,6 +76,7 @@ func (db *DB) GetMessagesByChatID(chatID int, limit, offset int) ([]models.Messa
 	defer rows.Close()
 
 	var messages []models.Message
+	messages = make([]models.Message, 0)
 	for rows.Next() {
 		var message models.Message
 		if err := rows.Scan(&message.ID, &message.SenderID, &message.ChatID, &message.Content,
