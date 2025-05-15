@@ -60,6 +60,7 @@ func (db *DB) GetChatsForUser(userID int) ([]models.Chat, error) {
 	defer rows.Close()
 
 	var chats []models.Chat
+	chats = make([]models.Chat, 0)
 	for rows.Next() {
 		var chat models.Chat
 		if err := rows.Scan(&chat.ID, &chat.Type, &chat.Name, &chat.CreatedAt, &chat.UpdatedAt, &chat.IsActive); err != nil {
