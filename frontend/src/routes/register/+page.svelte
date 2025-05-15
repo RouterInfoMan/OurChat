@@ -39,7 +39,7 @@
 			}
 
 			// Make the API call to register the user
-			const response = await fetch('http://localhost:8080/api/register', {
+			const response = await fetch('/register', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ username, email, password })
