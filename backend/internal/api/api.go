@@ -83,12 +83,16 @@ func (s *Server) SetupRoutes() {
 	protected.HandleFunc("/chats", s.ChatHandler.HandleGetChats).Methods("GET")
 	protected.HandleFunc("/chats", s.ChatHandler.HandleCreateChat).Methods("POST")
 	protected.HandleFunc("/chats/{chatID}", s.ChatHandler.HandleGetChat).Methods("GET")
+	protected.HandleFunc("/chats/{chatID}/members", s.ChatHandler.HandleGetChatMembers).Methods("GET")
 
 	// Message routes
 	protected.HandleFunc("/chats/{chatID}/messages", s.MessageHandler.HandleGetMessages).Methods("GET")
 	protected.HandleFunc("/chats/{chatID}/messages", s.MessageHandler.HandleSendMessage).Methods("POST")
 	protected.HandleFunc("/chats/{chatID}/messages/read", s.MessageHandler.HandleMarkMessagesAsRead).Methods("POST")
 	protected.HandleFunc("/chats/{chatID}/messages/search", s.MessageHandler.HandleSearchMessages).Methods("GET")
+
+	// Helper routes
+	protected.HandleFunc("/users", s.UserHandler.HandleGetUsersByIDs).Methods("GET", "POST")
 
 	s.Router.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Construct the file path

@@ -179,3 +179,43 @@ func (h *ChatHandler) HandleGetChat(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(chat)
 }
+
+// HandleGetChatMembers gets all members of a specific chat
+func (h *ChatHandler) HandleGetChatMembers(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context (set by auth middleware)
+	userID, ok := r.Context().Value("user_id").(int)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Get chat ID from URL
+	vars := mux.Vars(r)
+	chatIDStr := vars["chatID"]
+	chatID, err := strconv.Atoi(chatIDStr)
+	if err != nil {
+		http.Error(w, "Invalid chat ID", http.StatusBadRequest)
+		return
+	}
+
+	// Check if user is a member of the chat
+	isMember, _, err := h.DB.IsUserChatMember(userID, chatID)
+	if err != nil {
+		http.Error(w, "Failed to verify chat membership", http.StatusInternalServerError)
+		return
+	}
+	if !isMember {
+		http.Error(w, "You are not a member of this chat", http.StatusForbidden)
+		return
+	}
+
+	// Get chat members from database
+	members, err := h.DB.GetChatMembers(chatID)
+	if err != nil {
+		http.Error(w, "Failed to get chat members", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(members)
+}

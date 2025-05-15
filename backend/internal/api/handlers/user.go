@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	"OurChat/internal/db"
@@ -156,4 +158,73 @@ func (h *UserHandler) HandleUpdateProfile(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(profile)
+}
+
+// UserIDsRequest represents a request to get user details by IDs
+type UserIDsRequest struct {
+	UserIDs []int `json:"user_ids"`
+}
+
+// HandleGetUsersByIDs gets basic information for a list of user IDs
+// Usage: GET /users/ids?ids=1,2,3
+// Usage: POST /users/ids with body {"user_ids": [1, 2, 3]}
+func (h *UserHandler) HandleGetUsersByIDs(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context (set by auth middleware)
+	_, ok := r.Context().Value("user_id").(int)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Parse request body for POST method
+	if r.Method == http.MethodPost {
+		var req UserIDsRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		// Get users from database
+		users, err := h.DB.GetUsersByIDs(req.UserIDs)
+		if err != nil {
+			log.Printf("Failed to get users: %v", err)
+			http.Error(w, "Failed to get users", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(users)
+		return
+	}
+
+	// For GET method, parse query parameters
+	userIDsParam := r.URL.Query().Get("ids")
+	if userIDsParam == "" {
+		http.Error(w, "Missing user IDs", http.StatusBadRequest)
+		return
+	}
+
+	// Split the comma-separated IDs
+	idStrings := strings.Split(userIDsParam, ",")
+	userIDs := make([]int, 0, len(idStrings))
+
+	for _, idStr := range idStrings {
+		id, err := strconv.Atoi(strings.TrimSpace(idStr))
+		if err != nil {
+			http.Error(w, "Invalid user ID format", http.StatusBadRequest)
+			return
+		}
+		userIDs = append(userIDs, id)
+	}
+
+	// Get users from database
+	users, err := h.DB.GetUsersByIDs(userIDs)
+	if err != nil {
+		log.Printf("Failed to get users: %v", err)
+		http.Error(w, "Failed to get users", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(users)
 }

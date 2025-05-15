@@ -170,3 +170,52 @@ func (db *DB) GetDirectChatBetweenUsers(userID1, userID2 int) (int, error) {
 	log.Printf("Created new direct chat %d between users %d and %d", chatID, userID1, userID2)
 	return chatID, nil
 }
+
+// GetChatMembers returns all users who are members of a specific chat
+func (db *DB) GetChatMembers(chatID int) ([]models.ChatMember, error) {
+	query := `
+    SELECT cm.id, cm.user_id, cm.chat_id, cm.role, cm.joined_at, cm.last_read_at,
+           u.username, u.status
+    FROM chat_members cm
+    JOIN users u ON cm.user_id = u.id
+    WHERE cm.chat_id = ?
+    ORDER BY cm.role = 'admin' DESC, u.username ASC`
+
+	rows, err := db.Query(query, chatID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get chat members: %w", err)
+	}
+	defer rows.Close()
+
+	var members []models.ChatMember
+	for rows.Next() {
+		var member models.ChatMember
+		var lastReadAt sql.NullTime
+
+		err := rows.Scan(
+			&member.ID,
+			&member.UserID,
+			&member.ChatID,
+			&member.Role,
+			&member.JoinedAt,
+			&lastReadAt,
+			&member.Username,
+			&member.Status,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan chat member: %w", err)
+		}
+
+		if lastReadAt.Valid {
+			member.LastReadAt = &lastReadAt.Time
+		}
+
+		members = append(members, member)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating chat members: %w", err)
+	}
+
+	return members, nil
+}
