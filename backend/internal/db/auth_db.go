@@ -136,3 +136,55 @@ func (db *DB) GetUserJWTKey(userID int) (string, error) {
 
 	return jwtKey, nil
 }
+
+// RequestPasswordReset initiates a password reset for a user
+func (db *DB) RequestPasswordReset(email string) (*models.User, error) {
+	// Check if the user exists
+	user := &models.User{}
+	query := `SELECT id, username, email, jwt_key FROM users WHERE email = ?`
+
+	err := db.QueryRow(query, email).Scan(&user.ID, &user.Username, &user.Email, &user.JWTKey)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("no user found with this email")
+		}
+		return nil, fmt.Errorf("failed to get user: %w", err)
+	}
+
+	return user, nil
+}
+
+// ResetPassword changes a user's password and rotates their JWT key to invalidate existing tokens
+func (db *DB) ResetPassword(userID int, newPassword string) error {
+	// Begin a transaction
+	tx, err := db.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Update the password
+	_, err = tx.Exec("UPDATE users SET password = ? WHERE id = ?", newPassword, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update password: %w", err)
+	}
+
+	// Generate a new JWT key to invalidate existing tokens
+	newJWTKey, err := GenerateJWTKey()
+	if err != nil {
+		return fmt.Errorf("failed to generate new JWT key: %w", err)
+	}
+
+	// Update the JWT key
+	_, err = tx.Exec("UPDATE users SET jwt_key = ? WHERE id = ?", newJWTKey, userID)
+	if err != nil {
+		return fmt.Errorf("failed to update JWT key: %w", err)
+	}
+
+	// Commit the transaction
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	return nil
+}
