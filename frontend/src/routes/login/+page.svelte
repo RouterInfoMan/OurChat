@@ -30,7 +30,7 @@
 
 			const data = await response.json();
 
-			
+
 			if (!response.ok) {
 				if (response.headers.get('Content-Type')?.includes('application/json')) {
 					throw new Error(data.message || 'Eroare la autentificare');
@@ -42,7 +42,7 @@
 			// On successful login, store the JWT token and redirect to the dashboard
 			if (data.token) {
 				localStorage.setItem('jwt_token', data.token);
-				goto('dashboard');
+				goto('/');
 			} else {
 				throw new Error('Nu s-a primit token de autentificare');
 			}
@@ -66,7 +66,7 @@
 
 	// Function for navigating to the dashboard (if not logged in yet, redirect to login page)
 	function goToDashboard() {
-		goto('dashboard');
+		goto('/');
 	}
 </script>
 

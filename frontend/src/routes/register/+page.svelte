@@ -68,7 +68,7 @@
 
 	// Navigation to the dashboard (not used in the registration page)
 	function goToDashboard() {
-		goto('dashboard');
+		goto('/');
 	}
 </script>
 
