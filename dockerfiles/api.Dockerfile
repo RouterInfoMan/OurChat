@@ -16,18 +16,6 @@ COPY backend/ ./
 
 RUN CGO_ENABLED=1 GOOS=linux go build -o ourchat ./cmd/server
 
-
-FROM node:23-alpine AS frontend-builder
-
-WORKDIR /app
-
-COPY frontend/package.json frontend/package-lock.json ./
-RUN npm install
-
-COPY frontend/ ./
-RUN npm run build
-
-
 FROM alpine:latest
 
 WORKDIR /app
@@ -41,14 +29,12 @@ RUN apk --no-cache add \
 # Copy the binary from the builder stage
 COPY --from=builder /app/backend/ourchat .
 
-# Copy templates and static files from the backend folder
+# Copy templates and static files
 COPY --from=builder /app/backend/templates ./templates
 COPY --from=builder /app/backend/static ./static
-COPY --from=frontend-builder /app/build ./static-frontend
 
 # Copy database migrations directory
 COPY --from=builder /app/backend/internal/db/migrations ./internal/db/migrations
-
 
 # Expose the application port
 EXPOSE 8080
