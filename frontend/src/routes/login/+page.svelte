@@ -2,47 +2,44 @@
 	import { goto } from '$app/navigation';
 	import { preventDefault } from 'svelte/legacy';
 
-	// Variabile pentru datele din formular
-	let email = $state('');
+	// Variables for form data
+	let username = $state('');
 	let password = $state('');
 	let errorMessage = $state('');
 	let isLoading = $state(false);
 
-	// Funcția pentru trimiterea formularului
+	// Function to handle form submission
 	async function handleSubmit() {
 		try {
 			isLoading = true;
 			errorMessage = '';
 
-			// Validare de bază
-			if (!email || !password) {
+			// Basic validation
+			if (!username || !password) {
 				errorMessage = 'Toate câmpurile sunt obligatorii';
 				isLoading = false;
 				return;
 			}
 
-			// Validare email
-			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-			if (!emailRegex.test(email)) {
-				errorMessage = 'Adresa de email nu este validă';
-				isLoading = false;
-				return;
-			}
-
-			// Apelul către API pentru autentificare
-			const response = await fetch('/login', {
+			// API call to authenticate the user with username
+			const response = await fetch('http://localhost:8080/api/login', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ email, password })
+				body: JSON.stringify({ username, password })
 			});
 
 			const data = await response.json();
 
+			
 			if (!response.ok) {
-				throw new Error(data.message || 'Eroare la autentificare');
+				if (response.headers.get('Content-Type')?.includes('application/json')) {
+					throw new Error(data.message || 'Eroare la autentificare');
+				} else {
+					throw new Error('Eroare la autentificare. Verificați mesajul de eroare de la server');
+				}
 			}
 
-			// În caz de succes, salvăm token-ul JWT și redirecționăm către dashboard
+			// On successful login, store the JWT token and redirect to the dashboard
 			if (data.token) {
 				localStorage.setItem('jwt_token', data.token);
 				goto('dashboard');
@@ -57,17 +54,17 @@
 		}
 	}
 
-	// Funcție pentru navigare la pagina de înregistrare
+	// Function for navigating to the registration page
 	function goToRegister() {
 		goto('register');
 	}
 
-	// Funcție pentru navigare la pagina de resetare parolă
+	// Function for navigating to the password reset page
 	function goToForgotPassword() {
 		goto('forgotPassword');
 	}
 
-	// Funcție pentru navigare la dashboard
+	// Function for navigating to the dashboard (if not logged in yet, redirect to login page)
 	function goToDashboard() {
 		goto('dashboard');
 	}
@@ -82,7 +79,7 @@
 	<h1>Log in to your account</h1>
 
 	<form onsubmit={preventDefault(handleSubmit)}>
-		<input type="email" placeholder="e-mail" bind:value={email} required />
+		<input type="text" placeholder="username" bind:value={username} required />
 
 		<input type="password" placeholder="password" bind:value={password} required />
 

@@ -2,7 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { preventDefault } from 'svelte/legacy';
 
-	// Variabile pentru datele din formular
+	// Variables to store form data
 	let username = $state('');
 	let email = $state('');
 	let password = $state('');
@@ -10,20 +10,20 @@
 	let errorMessage = $state('');
 	let isLoading = $state(false);
 
-	// Funcția pentru trimiterea formularului
+	// Function to handle form submission
 	async function handleSubmit() {
 		try {
 			isLoading = true;
 			errorMessage = '';
 
-			// Validare de bază
+			// Basic form validation
 			if (!username || !email || !password || !confirmPassword) {
 				errorMessage = 'Toate câmpurile sunt obligatorii';
 				isLoading = false;
 				return;
 			}
 
-			// Validare email
+			// Email validation
 			const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 			if (!emailRegex.test(email)) {
 				errorMessage = 'Adresa de email nu este validă';
@@ -31,18 +31,18 @@
 				return;
 			}
 
-			// Validare parole identice
+			// Password match validation
 			if (password !== confirmPassword) {
 				errorMessage = 'Parolele nu coincid';
 				isLoading = false;
 				return;
 			}
 
-			// Apelul către API pentru înregistrare
-			const response = await fetch('/register', {
+			// Make the API call to register the user
+			const response = await fetch('http://localhost:8080/api/register', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify({ username, email, password, confirmPassword })
+				body: JSON.stringify({ username, email, password })
 			});
 
 			const data = await response.json();
@@ -51,15 +51,8 @@
 				throw new Error(data.message || 'Eroare la înregistrare');
 			}
 
-			// În caz de succes, salvăm token-ul JWT și redirecționăm către dashboard
-			if (data.token) {
-				localStorage.setItem('jwt_token', data.token);
-				goto('dashboard');
-			} else {
-				// Dacă nu primim token, redirecționăm către login
-				alert('Înregistrare reușită! Te rugăm să te autentifici.');
-				goto('login');
-			}
+			// If successful, redirect to login page
+			goto('login');
 		} catch (error: any) {
 			errorMessage = error.message || 'A apărut o eroare la înregistrare';
 			console.error('Eroare înregistrare:', error);
@@ -68,23 +61,25 @@
 		}
 	}
 
-	// Funcție pentru navigare la pagina de login
+	// Navigation to the login page
 	function goToLogin() {
 		goto('login');
 	}
 
-	// Funcție pentru navigare la dashboard
+	// Navigation to the dashboard (not used in the registration page)
 	function goToDashboard() {
 		goto('dashboard');
 	}
 </script>
 
 <div class="container">
+	<!-- Logo Section -->
 	<div class="logo-container" onclick={goToDashboard}>
 		<img src="/ourchat_logo.png" alt="OurChat Logo" class="logo-image" />
 		<div class="logo-text">OurChat</div>
 	</div>
 
+	<!-- Registration Form -->
 	<h1>Create an account</h1>
 
 	<form onsubmit={preventDefault(handleSubmit)}>
