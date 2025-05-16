@@ -1,7 +1,6 @@
 package api
 
 import (
-	"html/template"
 	"log"
 
 	"OurChat/internal/api/handlers"
@@ -13,7 +12,6 @@ import (
 
 type Server struct {
 	Router         *mux.Router
-	Templates      *template.Template
 	DB             *db.DB
 	AuthHandler    *handlers.AuthHandler
 	UserHandler    *handlers.UserHandler
@@ -26,12 +24,6 @@ type Server struct {
 func NewServer() *Server {
 	// Create a new router
 	router := mux.NewRouter()
-
-	// Parse all templates
-	templates, err := template.ParseGlob("templates/*.html")
-	if err != nil {
-		log.Fatalf("Error parsing templates: %v", err)
-	}
 
 	// Connect to database
 	database, err := db.NewDB("./data/ourchat.db")
@@ -50,7 +42,6 @@ func NewServer() *Server {
 
 	return &Server{
 		Router:         router,
-		Templates:      templates,
 		DB:             database,
 		AuthHandler:    authHandler,
 		UserHandler:    userHandler,
