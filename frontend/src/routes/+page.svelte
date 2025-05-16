@@ -43,6 +43,10 @@
 	function goToRegister() {
 		goto('register');
 	}
+
+	function gotoChat() {
+		goto('chat');
+	}
 </script>
 
 <div class="dashboard">
@@ -93,6 +97,12 @@
 					<div class="feature-icon">📁</div>
 					<div class="feature-title">Partajare Fișiere</div>
 					<div class="feature-desc">Trimite și primește fișiere multimedia în timp real</div>
+				</div>
+
+				<div class="feature-card" onclick={gotoChat}>
+					<div class="feature-icon">!!!</div>
+					<div class="feature-title">Accesează chat-ul</div>
+					<div class="feature-desc">Dă clic aici</div>
 				</div>
 			</div>
 		{:else}
