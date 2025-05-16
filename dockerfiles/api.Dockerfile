@@ -29,10 +29,6 @@ RUN apk --no-cache add \
 # Copy the binary from the builder stage
 COPY --from=builder /app/backend/ourchat .
 
-# Copy templates and static files
-COPY --from=builder /app/backend/templates ./templates
-COPY --from=builder /app/backend/static ./static
-
 # Copy database migrations directory
 COPY --from=builder /app/backend/internal/db/migrations ./internal/db/migrations
 
