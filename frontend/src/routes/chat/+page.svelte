@@ -2,8 +2,12 @@
 	import { onMount } from 'svelte';
 
 	let loading = $state(true);
-	let chats = $state(null);
+	let chats: [{
+		"id": number;
+		"name": string;
+	}] | null = $state(null);
 	let error: Error | null = $state(null);
+	let selected_chat: number | null = $state(null);
 
 	onMount(async () => {
 		// Selectează elementele DOM cu type assertions
@@ -241,69 +245,66 @@
 			</div>
 
 			<div class="conversation-list">
-				<div class="conversation-item active">
-					<div class="avatar-wrapper">
-						<img src="/default-avatar.png" alt="Avatar" />
+				{#each chats as chat}
+					<div class="conversation-item {chat.id === 1 ? 'active' : ''}">
+						<div class="avatar-wrapper">
+							<img src="/default-avatar.png" alt="Avatar" />
+						</div>
+						<div class="conv-details">
+							<h3>{chat.name}</h3>
+							<p>Mesaj recent</p>
+						</div>
 					</div>
-					<div class="conv-details">
-						<h3>Conversație</h3>
-						<p>Mesaj recent</p>
-					</div>
-				</div>
-				<div class="conversation-item">
-					<div class="avatar-wrapper">
-						<img src="/default-avatar.png" alt="Avatar" />
-					</div>
-					<div class="conv-details">
-						<h3>Altă conversație</h3>
-						<p>Mesaj recent</p>
-					</div>
-				</div>
+				{/each}
 			</div>
 		</div>
 
 		<!-- Zona principală de chat -->
-		<div class="chat-area">
-			<div class="chat-header">
-				<div class="current-conversation">
-					<div class="avatar-wrapper">
-						<img src="/default-avatar.png" alt="Avatar" />
-					</div>
-					<h2>Conversație</h2>
-				</div>
-			</div>
-
-			<div class="messages-container">
-				<div class="status-message">
-					<p>Ai selectat conversația: Conversație</p>
-				</div>
-
-				<!-- Exemplu de mesaj cu receipt -->
-				<div class="message-sent">
-					<div class="message-bubble">Salut! Cum merge proiectul?</div>
-					<div class="message-info">
-						<span class="message-time">14:25</span>
-						<span class="read-receipt seen">Văzut</span>
+		{#if selected_chat !== null}
+			<div class="chat-area">
+				<div class="chat-header">
+					<div class="current-conversation">
+						<div class="avatar-wrapper">
+							<img src="/default-avatar.png" alt="Avatar" />
+						</div>
+						<h2>Conversație</h2>
 					</div>
 				</div>
-			</div>
 
-			<div class="message-input-area">
-				<button class="attachment-btn">
-					<svg viewBox="0 0 24 24" width="24" height="24"
-						><path
-							d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
-						></path></svg
-					>
-				</button>
-				<textarea placeholder="Tastează un mesaj..." class="message-input" rows="1"></textarea>
-				<button class="send-btn">
-					<svg viewBox="0 0 24 24" width="24" height="24"
-						><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg
-					>
-				</button>
+				<div class="messages-container">
+					<div class="status-message">
+						<p>Ai selectat conversația: Conversație</p>
+					</div>
+
+					<!-- Exemplu de mesaj cu receipt -->
+					<div class="message-sent">
+						<div class="message-bubble">Salut! Cum merge proiectul?</div>
+						<div class="message-info">
+							<span class="message-time">14:25</span>
+							<span class="read-receipt seen">Văzut</span>
+						</div>
+					</div>
+				</div>
+
+				<div class="message-input-area">
+					<button class="attachment-btn">
+						<svg viewBox="0 0 24 24" width="24" height="24"
+							><path
+								d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
+							></path></svg
+						>
+					</button>
+					<textarea placeholder="Tastează un mesaj..." class="message-input" rows="1"></textarea>
+					<button class="send-btn">
+						<svg viewBox="0 0 24 24" width="24" height="24"
+							><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg
+						>
+					</button>
+				</div>
 			</div>
-		</div>
+		{:else}
+			Alege un chat din stânga.
+		{/if}
 	{:else}
 		eroare
 	{/if}
