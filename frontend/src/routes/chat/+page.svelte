@@ -1,13 +1,24 @@
 <script lang="ts">
+	import { goto, invalidateAll } from '$app/navigation';
 	import { onMount } from 'svelte';
 
 	let loading = $state(true);
-	let chats: [{
-		"id": number;
-		"name": string;
-	}] | null = $state(null);
+	let chats:
+		| [
+				{
+					id: number;
+					name: string;
+				}
+		  ]
+		| null = $state(null);
 	let error: Error | null = $state(null);
 	let selected_chat: number | null = $state(null);
+
+	let show_new_chat_popover = $state(false);
+	let new_chat_entites = $state('');
+	// false = nu se creează chat, string = mesaj de eroare
+	// true = se creează chat
+	let new_chat_creating: boolean | string = $state(false);
 
 	onMount(async () => {
 		// Selectează elementele DOM cu type assertions
@@ -183,27 +194,57 @@
 			let req = await fetch('/api/chats', {
 				method: 'GET',
 				headers: {
-					'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
+					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
 				}
 			});
 			if (!req.ok) {
 				throw new Error('Eroare la obținerea conversațiilor');
 			}
 			chats = await req.json();
-		}
-		catch (err) {
+		} catch (err) {
 			error = err as Error;
 		} finally {
 			loading = false;
 		}
 	});
+
+	async function createChat() {
+		try {
+			new_chat_creating = true;
+			let new_chat_users = JSON.parse(new_chat_entites) as number[];
+
+			const response = await fetch('api/chats', {
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`,
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					type: new_chat_users.length > 1 ? 'group' : 'direct',
+					users: new_chat_users,
+					name: new_chat_users.length > 1 ? 'Group Chat ' + Math.random() : undefined
+				})
+			});
+
+			if (!response.ok) {
+				throw new Error(await response.text());
+			}
+
+			new_chat_creating = false;
+			await invalidateAll();
+			//todo reincarcare pagina, nu merge nimic
+		} catch (error: any) {
+			console.error('Error:', error);
+			new_chat_creating = error.message || 'A apărut o eroare la crearea chat-ului.';
+		}
+	}
 </script>
 
 <div class="chat-layout">
 	<!-- Sidebar-ul albastru îngust -->
 	<div class="sidebar-icons">
 		<div class="top-icons">
-			<a href="#" class="icon-btn">
+			<a href="#" class="icon-btn" onclick={() => (show_new_chat_popover = true)}>
 				<svg viewBox="0 0 24 24" width="24" height="24"
 					><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line
 						x1="8"
@@ -229,7 +270,7 @@
 					></path></svg
 				>
 			</a>
-			<div class="profile-img">
+			<div class="profile-img" onclick={() => {goto('/')}}>
 				<img src="/default-avatar.png" alt="Profil" />
 			</div>
 		</div>
@@ -309,6 +350,32 @@
 		eroare
 	{/if}
 </div>
+
+{#if show_new_chat_popover}
+	<div class="popover-overlay">
+		<div class="popover-content">
+			<label>
+				Cu cine veri să vorbești? (format: [1,2,3] cu id-uri de utilizatori):
+				<input type="text" bind:value={new_chat_entites} />
+			</label>
+			<div style="margin-top:10px;">
+				<button onclick={createChat}>Adaugă</button>
+				<button
+					onclick={() => {
+						show_new_chat_popover = false;
+					}}>Închide</button
+				>
+			</div>
+			<div style="color: red; margin-top: 10px;">
+				{#if typeof new_chat_creating === 'string'}
+					Eroare: {new_chat_creating}
+				{:else if new_chat_creating === true}
+					Se creează chat...
+				{/if}
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style>
 	/* Layout de bază */
@@ -727,5 +794,28 @@
 		.chat-area {
 			height: calc(100vh - 130px);
 		}
+	}
+	.popover-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(0, 0, 0, 0.2);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+	}
+	.popover-content {
+		background: #fff;
+		padding: 24px 20px 16px 20px;
+		border-radius: 12px;
+		box-shadow: 0 2px 16px rgba(0, 0, 0, 0.18);
+		min-width: 300px;
+		max-width: 90vw;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
 	}
 </style>
