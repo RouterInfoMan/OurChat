@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { goto, invalidateAll } from '$app/navigation';
+	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 
 	let loading = $state(true);
@@ -12,7 +12,23 @@
 		  ]
 		| null = $state(null);
 	let error: Error | null = $state(null);
+
 	let selected_chat: number | null = $state(null);
+	// false = nu se încarcă, string = mesaj de eroare
+	// true = se încarcă
+	let selected_chat_data: {
+		id: number;
+		name: string;
+	} | boolean = $state(false);
+	// string = mesaj de eroare, null = se incarcă
+	let chat_messages: {
+		id: number;
+		sender_id: number;
+		chat_id: number;
+		content: string;
+		created_at: string;
+		is_read: string;
+	}[] | string | null = $state(null);
 
 	let show_new_chat_popover = $state(false);
 	let new_chat_entites = $state('');
@@ -126,48 +142,48 @@
 		}
 
 		// Gestionare selectare conversații
-		conversationItems.forEach((item) => {
-			item.addEventListener('click', function (this: Element) {
-				if (!messagesContainer) return;
+		//conversationItems.forEach((item) => {
+		//	item.addEventListener('click', function (this: Element) {
+		//		if (!messagesContainer) return;
 
-				// Elimină clasa active de la toate conversațiile
-				conversationItems.forEach((conv) => {
-					conv.classList.remove('active');
-				});
+		//		// Elimină clasa active de la toate conversațiile
+		//		conversationItems.forEach((conv) => {
+		//			conv.classList.remove('active');
+		//		});
 
-				// Adaugă clasa active la conversația selectată
-				this.classList.add('active');
+		//		// Adaugă clasa active la conversația selectată
+		//		this.classList.add('active');
 
-				// Actualizează informațiile din header
-				const nameElement = this.querySelector('.conv-details h3');
-				const headerName = document.querySelector('.current-conversation h2');
+		//		// Actualizează informațiile din header
+		//		const nameElement = this.querySelector('.conv-details h3');
+		//		const headerName = document.querySelector('.current-conversation h2');
 
-				if (nameElement && headerName) {
-					const name = nameElement.textContent || '';
-					headerName.textContent = name;
+		//		if (nameElement && headerName) {
+		//			const name = nameElement.textContent || '';
+		//			headerName.textContent = name;
 
-					// Actualizează avatarul din header
-					const avatarImg = this.querySelector('.avatar-wrapper img') as HTMLImageElement | null;
-					const headerAvatar = document.querySelector(
-						'.current-conversation .avatar-wrapper img'
-					) as HTMLImageElement | null;
+		//			// Actualizează avatarul din header
+		//			const avatarImg = this.querySelector('.avatar-wrapper img') as HTMLImageElement | null;
+		//			const headerAvatar = document.querySelector(
+		//				'.current-conversation .avatar-wrapper img'
+		//			) as HTMLImageElement | null;
 
-					if (avatarImg && headerAvatar && avatarImg.getAttribute('src')) {
-						headerAvatar.setAttribute('src', avatarImg.getAttribute('src') || '');
-					}
+		//			if (avatarImg && headerAvatar && avatarImg.getAttribute('src')) {
+		//				headerAvatar.setAttribute('src', avatarImg.getAttribute('src') || '');
+		//			}
 
-					// Curăță mesageria și adaugă statusul
-					messagesContainer.innerHTML = '';
+		//			// Curăță mesageria și adaugă statusul
+		//			messagesContainer.innerHTML = '';
 
-					const statusMessage = document.createElement('div');
-					statusMessage.className = 'status-message';
-					const statusParagraph = document.createElement('p');
-					statusParagraph.textContent = `Ai selectat conversația: ${name}`;
-					statusMessage.appendChild(statusParagraph);
-					messagesContainer.appendChild(statusMessage);
-				}
-			});
-		});
+		//			const statusMessage = document.createElement('div');
+		//			statusMessage.className = 'status-message';
+		//			const statusParagraph = document.createElement('p');
+		//			statusParagraph.textContent = `Ai selectat conversația: ${name}`;
+		//			statusMessage.appendChild(statusParagraph);
+		//			messagesContainer.appendChild(statusMessage);
+		//		}
+		//	});
+		//});
 
 		// Funcție pentru integrarea cu backend-ul de read receipts
 		// Aceasta va fi implementată când vei conecta cu backend-ul real
@@ -243,10 +259,51 @@
 
 			new_chat_creating = false;
 			await loadEverything();
-			//todo reincarcare pagina, nu merge nimic
 		} catch (error: any) {
 			console.error('Error:', error);
 			new_chat_creating = error.message || 'A apărut o eroare la crearea chat-ului.';
+		}
+	}
+
+	async function loadChat() {
+		selected_chat_data = true;
+		loadChatMessages();
+		try {
+			const response = await fetch(`/api/chats/${selected_chat}`, {
+				method: 'GET',
+				headers: {
+					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
+				}
+			});
+
+			if (!response.ok) {
+				throw new Error('Eroare la obținerea detaliilor conversației');
+			}
+
+			selected_chat_data = await response.json();
+		} catch (error) {
+			console.error('Error:', error);
+			selected_chat_data = false;
+		}
+	}
+
+	async function loadChatMessages() {
+		try {
+			const response = await fetch(`/api/chats/${selected_chat}/messages`, {
+				method: 'GET',
+				headers: {
+					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
+				}
+			});
+
+			if (!response.ok) {
+				throw new Error('Eroare la obținerea mesajelor conversației');
+			}
+
+			chat_messages = await response.json();
+		} catch (error) {
+			console.error('Error:', error);
+			chat_messages = (error as Error).message;
 		}
 	}
 </script>
@@ -302,7 +359,10 @@
 
 			<div class="conversation-list">
 				{#each chats as chat}
-					<div class="conversation-item {chat.id === 1 ? 'active' : ''}">
+					<div class="conversation-item {chat.id === selected_chat ? 'active' : ''}" onclick={() => {
+						selected_chat = chat.id;
+						loadChat();
+					}}>
 						<div class="avatar-wrapper">
 							<img src="/default-avatar.png" alt="Avatar" />
 						</div>
@@ -317,47 +377,74 @@
 
 		<!-- Zona principală de chat -->
 		{#if selected_chat !== null}
-			<div class="chat-area">
-				<div class="chat-header">
-					<div class="current-conversation">
-						<div class="avatar-wrapper">
-							<img src="/default-avatar.png" alt="Avatar" />
-						</div>
-						<h2>Conversație</h2>
-					</div>
-				</div>
-
-				<div class="messages-container">
-					<div class="status-message">
-						<p>Ai selectat conversația: Conversație</p>
-					</div>
-
-					<!-- Exemplu de mesaj cu receipt -->
-					<div class="message-sent">
-						<div class="message-bubble">Salut! Cum merge proiectul?</div>
-						<div class="message-info">
-							<span class="message-time">14:25</span>
-							<span class="read-receipt seen">Văzut</span>
+			{#if typeof selected_chat_data === 'object'}
+				<!-- Zona de mesaje -->
+				<div class="chat-area">
+					<div class="chat-header">
+						<div class="current-conversation">
+							<div class="avatar-wrapper">
+								<img src="/default-avatar.png" alt="Avatar" />
+							</div>
+							<h2>{selected_chat_data.name}</h2>
 						</div>
 					</div>
-				</div>
 
-				<div class="message-input-area">
-					<button class="attachment-btn">
-						<svg viewBox="0 0 24 24" width="24" height="24"
-							><path
-								d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
-							></path></svg
-						>
-					</button>
-					<textarea placeholder="Tastează un mesaj..." class="message-input" rows="1"></textarea>
-					<button class="send-btn">
-						<svg viewBox="0 0 24 24" width="24" height="24"
-							><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg
-						>
-					</button>
+					<div class="messages-container">
+						<div class="status-message">
+							<p>Ai selectat conversația: {selected_chat_data.name}</p>
+						</div>
+
+						<!-- Exemplu de mesaj cu receipt
+						<div class="message-sent">
+							<div class="message-bubble">Salut! Cum merge proiectul?</div>
+							<div class="message-info">
+								<span class="message-time">14:25</span>
+								<span class="read-receipt seen">Văzut</span>
+							</div>
+						</div>
+						-->
+						{#if typeof chat_messages === 'string'}
+							Eroare la încărcarea mesajelor: {chat_messages}
+						{:else if chat_messages === null}
+							Se încarcă mesajele...
+						{:else}
+							{#each chat_messages as message}
+								<!-- todo - verificare message.sender_id === user_id (care e?) -->
+								<div class={message.sender_id === 1 ? "message-received" : "message-sent"}>
+									<div class="message-bubble">{message.content}</div>
+									<div class="message-info">
+										<span class="message-time">{new Date(message.created_at).toLocaleTimeString([], {
+											hour: '2-digit',
+											minute: '2-digit'
+										})}</span>
+										<span class="read-receipt delivered">Livrat</span>
+									</div>
+								</div>
+							{/each}
+						{/if}
+					</div>
+
+					<div class="message-input-area">
+						<button class="attachment-btn">
+							<svg viewBox="0 0 24 24" width="24" height="24"
+								><path
+									d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
+								></path></svg
+							>
+						</button>
+						<textarea placeholder="Tastează un mesaj..." class="message-input" rows="1"></textarea>
+						<button class="send-btn">
+							<svg viewBox="0 0 24 24" width="24" height="24"
+								><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg
+							>
+						</button>
+					</div>
 				</div>
-			</div>
+			{:else if selected_chat_data === true}
+				Se încarcă conversația...
+			{:else}
+				eroare
+			{/if}
 		{:else}
 			Alege un chat din stânga.
 		{/if}
