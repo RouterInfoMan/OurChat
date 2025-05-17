@@ -1,10 +1,53 @@
 <script lang="ts">
+	import { goto } from '$app/navigation';
 	import { onMount } from 'svelte';
 
-	onMount(() => {
+	let loading = $state(true);
+	let chats:
+		| [
+				{
+					id: number;
+					name: string;
+				}
+		  ]
+		| null = $state(null);
+	let error: Error | null = $state(null);
+
+	let selected_chat: number | null = $state(null);
+	// false = nu se încarcă, string = mesaj de eroare
+	// true = se încarcă
+	let selected_chat_data:
+		| {
+				id: number;
+				name: string;
+		  }
+		| boolean = $state(false);
+	// string = mesaj de eroare, null = se incarcă
+	let chat_messages:
+		| {
+				id: number;
+				sender_id: number;
+				chat_id: number;
+				content: string;
+				created_at: string;
+				is_read: string;
+		  }[]
+		| string
+		| null = $state(null);
+
+	let show_new_chat_popover = $state(false);
+	let new_chat_entites = $state('');
+	// false = nu se creează chat, string = mesaj de eroare
+	// true = se creează chat
+	let new_chat_creating: boolean | string = $state(false);
+
+	let messageInput: HTMLTextAreaElement | null;
+	let currentMessageText = $state('');
+	let isSending = $state(false);
+
+	onMount(async () => {
 		// Selectează elementele DOM cu type assertions
-		const messageInput = document.querySelector('.message-input') as HTMLTextAreaElement | null;
-		const sendButton = document.querySelector('.send-btn') as HTMLButtonElement | null;
+		messageInput = document.querySelector('.message-input') as HTMLTextAreaElement | null;
 		const messagesContainer = document.querySelector(
 			'.messages-container'
 		) as HTMLDivElement | null;
@@ -19,165 +62,254 @@
 			});
 		}
 
-		// Funcția pentru a adăuga un mesaj nou cu receipt
-		function addMessage(text: string, type: 'sent' | 'received'): void {
-			if (!messagesContainer) return;
+		loadEverything();
+	});
 
-			const messageDiv = document.createElement('div');
-			messageDiv.className = 'message-' + type;
+	// Funcția pentru a trimite un mesaj
+	async function sendMessage(): Promise<void> {
+		//if (!messageInput || !selected_chat) return;
 
-			const messageBubble = document.createElement('div');
-			messageBubble.className = 'message-bubble';
-			messageBubble.textContent = text;
+		const text = currentMessageText.trim();
+		if (!text || isSending) return;
 
-			messageDiv.appendChild(messageBubble);
+		try {
+			isSending = true;
 
-			// Adaugă informații despre mesaj (ora și read receipt) doar pentru mesajele trimise
-			if (type === 'sent') {
-				const messageInfo = document.createElement('div');
-				messageInfo.className = 'message-info';
+			// Crează un obiect temporar de mesaj pentru afișarea imediată în UI
+			const tempMessage = {
+				id: Date.now(), // ID temporar
+				sender_id: -1, // Va fi înlocuit de backend
+				chat_id: selected_chat,
+				content: text,
+				created_at: new Date().toISOString(),
+				is_read: 'false'
+			};
 
-				// Adaugă ora curentă
-				const currentTime = new Date();
-				const timeStr =
-					currentTime.getHours() +
-					':' +
-					(currentTime.getMinutes() < 10 ? '0' : '') +
-					currentTime.getMinutes();
-
-				const messageTime = document.createElement('span');
-				messageTime.className = 'message-time';
-				messageTime.textContent = timeStr;
-
-				// Adaugă read receipt inițial ca "delivered"
-				const readReceipt = document.createElement('span');
-				readReceipt.className = 'read-receipt delivered';
-				readReceipt.textContent = 'Livrat';
-
-				messageInfo.appendChild(messageTime);
-				messageInfo.appendChild(readReceipt);
-				messageDiv.appendChild(messageInfo);
-
-				// Simulează schimbarea statusului la "seen" după un timp
-				setTimeout(() => {
-					readReceipt.className = 'read-receipt seen';
-					readReceipt.textContent = 'Văzut';
-				}, 3000);
+			// Adaugă mesajul temporar la lista de mesaje pentru feedback instant
+			if (Array.isArray(chat_messages)) {
+				chat_messages = [...chat_messages, tempMessage];
+			} else {
+				chat_messages = [tempMessage];
 			}
 
-			messagesContainer.appendChild(messageDiv);
-
-			// Scroll la ultimul mesaj
-			messagesContainer.scrollTop = messagesContainer.scrollHeight;
-		}
-
-		// Funcția pentru a trimite un mesaj
-		function sendMessage(): void {
-			if (!messageInput || !messagesContainer) return;
-
-			const text = messageInput.value.trim();
-
-			if (text) {
-				// Adaugă mesajul utilizatorului
-				addMessage(text, 'sent');
-
-				// Golește input-ul și resetează înălțimea
+			// Golește input-ul
+			currentMessageText = '';
+			if (messageInput) {
 				messageInput.value = '';
 				messageInput.style.height = 'auto';
-
-				// Simulare răspuns automat
-				setTimeout(() => {
-					addMessage('Această funcționalitate va fi implementată complet în curând.', 'received');
-				}, 1000);
 			}
-		}
 
-		// Event listeners
-		if (sendButton) {
-			sendButton.addEventListener('click', sendMessage);
-		}
+			// Scroll la ultima poziție după ce DOM-ul s-a actualizat
+			setTimeout(() => {
+				const messagesContainer = document.querySelector('.messages-container');
+				if (messagesContainer) {
+					messagesContainer.scrollTop = messagesContainer.scrollHeight;
+				}
+			}, 50);
 
-		if (messageInput) {
-			messageInput.addEventListener('keypress', function (e: KeyboardEvent) {
-				if (e.key === 'Enter' && !e.shiftKey) {
-					sendMessage();
-					e.preventDefault();
+			// Trimite mesajul la server
+			const response = await fetch(`/api/chats/${selected_chat}/messages`, {
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`,
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					content: text
+				})
+			});
+
+			if (!response.ok) {
+				throw new Error('Eroare la trimiterea mesajului');
+			}
+
+			// Reîncarcă mesajele pentru a obține mesajul cu ID-ul real
+			await loadChatMessages();
+		} catch (error) {
+			console.error('Error sending message:', error);
+		} finally {
+			isSending = false;
+		}
+	}
+
+	// Gestionare selectare conversații
+	//conversationItems.forEach((item) => {
+	//	item.addEventListener('click', function (this: Element) {
+	//		if (!messagesContainer) return;
+
+	//		// Elimină clasa active de la toate conversațiile
+	//		conversationItems.forEach((conv) => {
+	//			conv.classList.remove('active');
+	//		});
+
+	//		// Adaugă clasa active la conversația selectată
+	//		this.classList.add('active');
+
+	//		// Actualizează informațiile din header
+	//		const nameElement = this.querySelector('.conv-details h3');
+	//		const headerName = document.querySelector('.current-conversation h2');
+
+	//		if (nameElement && headerName) {
+	//			const name = nameElement.textContent || '';
+	//			headerName.textContent = name;
+
+	//			// Actualizează avatarul din header
+	//			const avatarImg = this.querySelector('.avatar-wrapper img') as HTMLImageElement | null;
+	//			const headerAvatar = document.querySelector(
+	//				'.current-conversation .avatar-wrapper img'
+	//			) as HTMLImageElement | null;
+
+	//			if (avatarImg && headerAvatar && avatarImg.getAttribute('src')) {
+	//				headerAvatar.setAttribute('src', avatarImg.getAttribute('src') || '');
+	//			}
+
+	//			// Curăță mesageria și adaugă statusul
+	//			messagesContainer.innerHTML = '';
+
+	//			const statusMessage = document.createElement('div');
+	//			statusMessage.className = 'status-message';
+	//			const statusParagraph = document.createElement('p');
+	//			statusParagraph.textContent = `Ai selectat conversația: ${name}`;
+	//			statusMessage.appendChild(statusParagraph);
+	//			messagesContainer.appendChild(statusMessage);
+	//		}
+	//	});
+	//});
+
+	// Funcție pentru integrarea cu backend-ul de read receipts
+	// Aceasta va fi implementată când vei conecta cu backend-ul real
+	//	function updateMessageStatus(messageId: string, status: 'delivered' | 'seen'): void {
+	//		// Găsește mesajul după ID
+	//		const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
+	//		if (!messageElement) return;
+
+	//		// Găsește read receipt-ul
+	//		const readReceipt = messageElement.querySelector('.read-receipt');
+	//		if (!readReceipt) return;
+
+	//		// Actualizează statusul
+	//		if (status === 'delivered') {
+	//			readReceipt.className = 'read-receipt delivered';
+	//			readReceipt.textContent = 'Livrat';
+	//		} else if (status === 'seen') {
+	//			readReceipt.className = 'read-receipt seen';
+	//			readReceipt.textContent = 'Văzut';
+	//		}
+	//	}
+	//});
+
+	// (Re)setează starea aplicației făcând cereri la backend
+	async function loadEverything() {
+		loading = true;
+		chats = null;
+		error = null;
+		selected_chat = null;
+		show_new_chat_popover = false;
+
+		try {
+			let req = await fetch('/api/chats', {
+				method: 'GET',
+				headers: {
+					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
 				}
 			});
+			if (!req.ok) {
+				throw new Error('Eroare la obținerea conversațiilor');
+			}
+			chats = await req.json();
+		} catch (err) {
+			error = err as Error;
+		} finally {
+			loading = false;
 		}
+	}
 
-		// Gestionare selectare conversații
-		conversationItems.forEach((item) => {
-			item.addEventListener('click', function (this: Element) {
-				if (!messagesContainer) return;
+	async function createChat() {
+		try {
+			new_chat_creating = true;
+			let new_chat_users = JSON.parse(new_chat_entites) as number[];
 
-				// Elimină clasa active de la toate conversațiile
-				conversationItems.forEach((conv) => {
-					conv.classList.remove('active');
-				});
+			const response = await fetch('api/chats', {
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`,
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					type: new_chat_users.length > 1 ? 'group' : 'direct',
+					users: new_chat_users,
+					name: new_chat_users.length > 1 ? 'Group Chat ' + Math.random() : undefined
+				})
+			});
 
-				// Adaugă clasa active la conversația selectată
-				this.classList.add('active');
+			if (!response.ok) {
+				throw new Error(await response.text());
+			}
 
-				// Actualizează informațiile din header
-				const nameElement = this.querySelector('.conv-details h3');
-				const headerName = document.querySelector('.current-conversation h2');
+			new_chat_creating = false;
+			await loadEverything();
+		} catch (error: any) {
+			console.error('Error:', error);
+			new_chat_creating = error.message || 'A apărut o eroare la crearea chat-ului.';
+		}
+	}
 
-				if (nameElement && headerName) {
-					const name = nameElement.textContent || '';
-					headerName.textContent = name;
-
-					// Actualizează avatarul din header
-					const avatarImg = this.querySelector('.avatar-wrapper img') as HTMLImageElement | null;
-					const headerAvatar = document.querySelector(
-						'.current-conversation .avatar-wrapper img'
-					) as HTMLImageElement | null;
-
-					if (avatarImg && headerAvatar && avatarImg.getAttribute('src')) {
-						headerAvatar.setAttribute('src', avatarImg.getAttribute('src') || '');
-					}
-
-					// Curăță mesageria și adaugă statusul
-					messagesContainer.innerHTML = '';
-
-					const statusMessage = document.createElement('div');
-					statusMessage.className = 'status-message';
-					const statusParagraph = document.createElement('p');
-					statusParagraph.textContent = `Ai selectat conversația: ${name}`;
-					statusMessage.appendChild(statusParagraph);
-					messagesContainer.appendChild(statusMessage);
+	async function loadChat() {
+		selected_chat_data = true;
+		loadChatMessages();
+		try {
+			const response = await fetch(`/api/chats/${selected_chat}`, {
+				method: 'GET',
+				headers: {
+					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
 				}
 			});
-		});
 
-		// Funcție pentru integrarea cu backend-ul de read receipts
-		// Aceasta va fi implementată când vei conecta cu backend-ul real
-		function updateMessageStatus(messageId: string, status: 'delivered' | 'seen'): void {
-			// Găsește mesajul după ID
-			const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
-			if (!messageElement) return;
-
-			// Găsește read receipt-ul
-			const readReceipt = messageElement.querySelector('.read-receipt');
-			if (!readReceipt) return;
-
-			// Actualizează statusul
-			if (status === 'delivered') {
-				readReceipt.className = 'read-receipt delivered';
-				readReceipt.textContent = 'Livrat';
-			} else if (status === 'seen') {
-				readReceipt.className = 'read-receipt seen';
-				readReceipt.textContent = 'Văzut';
+			if (!response.ok) {
+				throw new Error('Eroare la obținerea detaliilor conversației');
 			}
+
+			selected_chat_data = await response.json();
+		} catch (error) {
+			console.error('Error:', error);
+			selected_chat_data = false;
 		}
-	});
+	}
+
+	async function loadChatMessages() {
+		try {
+			const response = await fetch(`/api/chats/${selected_chat}/messages`, {
+				method: 'GET',
+				headers: {
+					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
+				}
+			});
+
+			if (!response.ok) {
+				throw new Error('Eroare la obținerea mesajelor conversației');
+			}
+
+			chat_messages = await response.json();
+		} catch (error) {
+			console.error('Error:', error);
+			chat_messages = (error as Error).message;
+		}
+	}
 </script>
 
 <div class="chat-layout">
 	<!-- Sidebar-ul albastru îngust -->
 	<div class="sidebar-icons">
 		<div class="top-icons">
-			<a href="#" class="icon-btn">
+			<a
+				href="#"
+				class="icon-btn"
+				onclick={() => {
+					show_new_chat_popover = true;
+					new_chat_entites = '';
+					new_chat_creating = false;
+				}}
+			>
 				<svg viewBox="0 0 24 24" width="24" height="24"
 					><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line
 						x1="8"
@@ -203,83 +335,163 @@
 					></path></svg
 				>
 			</a>
-			<div class="profile-img">
+			<div
+				class="profile-img"
+				onclick={() => {
+					goto('/');
+				}}
+			>
 				<img src="/default-avatar.png" alt="Profil" />
 			</div>
 		</div>
 	</div>
 
-	<!-- Sidebar-ul cu lista de conversații -->
-	<div class="sidebar-conversations">
-		<div class="conversations-header">
-			<h2>Chats</h2>
-		</div>
-
-		<div class="conversation-list">
-			<div class="conversation-item active">
-				<div class="avatar-wrapper">
-					<img src="/default-avatar.png" alt="Avatar" />
-				</div>
-				<div class="conv-details">
-					<h3>Conversație</h3>
-					<p>Mesaj recent</p>
-				</div>
+	{#if loading}
+		Se încarcă...
+	{:else if chats !== null}
+		<!-- Sidebar-ul cu lista de conversații -->
+		<div class="sidebar-conversations">
+			<div class="conversations-header">
+				<h2>Chats</h2>
 			</div>
-			<div class="conversation-item">
-				<div class="avatar-wrapper">
-					<img src="/default-avatar.png" alt="Avatar" />
-				</div>
-				<div class="conv-details">
-					<h3>Altă conversație</h3>
-					<p>Mesaj recent</p>
-				</div>
-			</div>
-		</div>
-	</div>
 
-	<!-- Zona principală de chat -->
-	<div class="chat-area">
-		<div class="chat-header">
-			<div class="current-conversation">
-				<div class="avatar-wrapper">
-					<img src="/default-avatar.png" alt="Avatar" />
-				</div>
-				<h2>Conversație</h2>
+			<div class="conversation-list">
+				{#each chats as chat}
+					<div
+						class="conversation-item {chat.id === selected_chat ? 'active' : ''}"
+						onclick={() => {
+							selected_chat = chat.id;
+							loadChat();
+						}}
+					>
+						<div class="avatar-wrapper">
+							<img src="/default-avatar.png" alt="Avatar" />
+						</div>
+						<div class="conv-details">
+							<h3>{chat.name}</h3>
+							<p>Mesaj recent</p>
+						</div>
+					</div>
+				{/each}
 			</div>
 		</div>
 
-		<div class="messages-container">
-			<div class="status-message">
-				<p>Ai selectat conversația: Conversație</p>
-			</div>
+		<!-- Zona principală de chat -->
+		{#if selected_chat !== null}
+			{#if typeof selected_chat_data === 'object'}
+				<!-- Zona de mesaje -->
+				<div class="chat-area">
+					<div class="chat-header">
+						<div class="current-conversation">
+							<div class="avatar-wrapper">
+								<img src="/default-avatar.png" alt="Avatar" />
+							</div>
+							<h2>{selected_chat_data.name}</h2>
+						</div>
+					</div>
 
-			<!-- Exemplu de mesaj cu receipt -->
-			<div class="message-sent">
-				<div class="message-bubble">Salut! Cum merge proiectul?</div>
-				<div class="message-info">
-					<span class="message-time">14:25</span>
-					<span class="read-receipt seen">Văzut</span>
+					<div class="messages-container">
+						<div class="status-message">
+							<p>Ai selectat conversația: {selected_chat_data.name}</p>
+						</div>
+
+						<!-- Exemplu de mesaj cu receipt
+						<div class="message-sent">
+							<div class="message-bubble">Salut! Cum merge proiectul?</div>
+							<div class="message-info">
+								<span class="message-time">14:25</span>
+								<span class="read-receipt seen">Văzut</span>
+							</div>
+						</div>
+						-->
+						{#if typeof chat_messages === 'string'}
+							Eroare la încărcarea mesajelor: {chat_messages}
+						{:else if chat_messages === null}
+							Se încarcă mesajele...
+						{:else}
+							{#each [...chat_messages].reverse() as message}
+								<!-- todo - verificare message.sender_id === user_id (care e?) -->
+								<div class={message.sender_id === 1 ? 'message-received' : 'message-sent'}>
+									<div class="message-bubble">{message.content}</div>
+									<div class="message-info">
+										<span class="message-time"
+											>{new Date(message.created_at).toLocaleTimeString([], {
+												hour: '2-digit',
+												minute: '2-digit'
+											})}</span
+										>
+										<span class="read-receipt delivered">Livrat</span>
+									</div>
+								</div>
+							{/each}
+						{/if}
+					</div>
+
+					<div class="message-input-area">
+						<button class="attachment-btn">
+							<svg viewBox="0 0 24 24" width="24" height="24"
+								><path
+									d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
+								></path></svg
+							>
+						</button>
+						<textarea
+							bind:value={currentMessageText}
+							placeholder="Tastează un mesaj..."
+							class="message-input"
+							rows="1"
+							onkeypress={(e) => {
+								if (e.key === 'Enter' && !e.shiftKey) {
+									e.preventDefault();
+									sendMessage();
+								}
+							}}
+						></textarea>
+						<button class="send-btn" onclick={sendMessage}>
+							<svg viewBox="0 0 24 24" width="24" height="24"
+								><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg
+							>
+						</button>
+					</div>
 				</div>
-			</div>
-		</div>
-
-		<div class="message-input-area">
-			<button class="attachment-btn">
-				<svg viewBox="0 0 24 24" width="24" height="24"
-					><path
-						d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
-					></path></svg
-				>
-			</button>
-			<textarea placeholder="Tastează un mesaj..." class="message-input" rows="1"></textarea>
-			<button class="send-btn">
-				<svg viewBox="0 0 24 24" width="24" height="24"
-					><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg
-				>
-			</button>
-		</div>
-	</div>
+			{:else if selected_chat_data === true}
+				Se încarcă conversația...
+			{:else}
+				eroare
+			{/if}
+		{:else}
+			Alege un chat din stânga.
+		{/if}
+	{:else}
+		eroare
+	{/if}
 </div>
+
+{#if show_new_chat_popover}
+	<div class="popover-overlay">
+		<div class="popover-content">
+			<label>
+				Cu cine veri să vorbești? (format: [1,2,3] cu id-uri de utilizatori):
+				<input type="text" bind:value={new_chat_entites} />
+			</label>
+			<div style="margin-top:10px;">
+				<button onclick={createChat}>Adaugă</button>
+				<button
+					onclick={() => {
+						show_new_chat_popover = false;
+					}}>Închide</button
+				>
+			</div>
+			<div style="color: red; margin-top: 10px;">
+				{#if typeof new_chat_creating === 'string'}
+					Eroare: {new_chat_creating}
+				{:else if new_chat_creating === true}
+					Se creează chat...
+				{/if}
+			</div>
+		</div>
+	</div>
+{/if}
 
 <style>
 	/* Layout de bază */
@@ -698,5 +910,28 @@
 		.chat-area {
 			height: calc(100vh - 130px);
 		}
+	}
+	.popover-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(0, 0, 0, 0.2);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+	}
+	.popover-content {
+		background: #fff;
+		padding: 24px 20px 16px 20px;
+		border-radius: 12px;
+		box-shadow: 0 2px 16px rgba(0, 0, 0, 0.18);
+		min-width: 300px;
+		max-width: 90vw;
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
 	}
 </style>
