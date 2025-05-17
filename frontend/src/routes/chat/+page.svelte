@@ -190,6 +190,17 @@
 			}
 		}
 
+		loadEverything();
+	});
+
+	// (Re)setează starea aplicației făcând cereri la backend
+	async function loadEverything() {
+		loading = true;
+		chats = null;
+		error = null;
+		selected_chat = null;
+		show_new_chat_popover = false;
+
 		try {
 			let req = await fetch('/api/chats', {
 				method: 'GET',
@@ -206,7 +217,7 @@
 		} finally {
 			loading = false;
 		}
-	});
+	}
 
 	async function createChat() {
 		try {
@@ -231,7 +242,7 @@
 			}
 
 			new_chat_creating = false;
-			await invalidateAll();
+			await loadEverything();
 			//todo reincarcare pagina, nu merge nimic
 		} catch (error: any) {
 			console.error('Error:', error);
@@ -244,7 +255,11 @@
 	<!-- Sidebar-ul albastru îngust -->
 	<div class="sidebar-icons">
 		<div class="top-icons">
-			<a href="#" class="icon-btn" onclick={() => (show_new_chat_popover = true)}>
+			<a href="#" class="icon-btn" onclick={() => {
+				show_new_chat_popover = true;
+				new_chat_entites = '';
+				new_chat_creating = false;
+			}}>
 				<svg viewBox="0 0 24 24" width="24" height="24"
 					><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line
 						x1="8"
