@@ -11,6 +11,7 @@
   - [Get Profile](#get-profile)
   - [Update Profile](#update-profile)
   - [Get Users by IDs](#get-users-by-ids)
+  - [Search Users](#search-users)
 - [Chats](#chats)
   - [Get Chats](#get-chats)
   - [Create Chat](#create-chat)
@@ -280,6 +281,40 @@ GET /api/users?ids=1,2,3
 - **Code**: 400 Bad Request (Invalid request or missing IDs)
 - **Code**: 401 Unauthorized (Invalid or missing token)
 - **Code**: 500 Internal Server Error
+
+### Search Users
+
+Search for users by partial username match.
+
+**URL**: `/api/users/search`
+**Method**: `GET`
+**Auth required**: Yes
+
+**Query Parameters**:
+- `q`: Search term (required, minimum 4 characters)
+- `limit`: Maximum number of results (optional, default: 20, max: 50)
+
+**Success Response**:
+- **Code**: 200 OK
+- **Content**:
+```json
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "john_doe",
+      "status": "online"
+    },
+    {
+      "id": 5,
+      "username": "johnny123",
+      "status": "offline"
+    }
+  ],
+  "count": 2,
+  "query": "john"
+}
+```
 
 ## Chats
 

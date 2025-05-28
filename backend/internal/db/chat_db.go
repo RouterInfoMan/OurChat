@@ -69,6 +69,22 @@ func (db *DB) GetChatsForUser(userID int) ([]models.Chat, error) {
 		chats = append(chats, chat)
 	}
 
+	for chat := range chats {
+		// Put the name of the other user in the chat name for direct chats
+		if chats[chat].Type == "direct" {
+			otherUserQuery := `
+			SELECT u.username FROM chat_members cm
+			JOIN users u ON cm.user_id = u.id
+			WHERE cm.chat_id = ? AND cm.user_id != ?`
+			var otherUsername string
+			err := db.QueryRow(otherUserQuery, chats[chat].ID, userID).Scan(&otherUsername)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get other user for direct chat: %w", err)
+			}
+			chats[chat].Name = otherUsername
+		}
+	}
+
 	log.Println("Chats retrieved successfully")
 	return chats, nil
 }

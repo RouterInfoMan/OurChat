@@ -190,3 +190,59 @@ func (db *DB) GetUsersByIDs(userIDs []int) (map[int]models.UserBasic, error) {
 
 	return users, nil
 }
+
+// SearchUsersByName searches for users by partial username match
+func (db *DB) SearchUsersByName(searchTerm string, limit int) ([]models.UserBasic, error) {
+	if searchTerm == "" {
+		return make([]models.UserBasic, 0), nil
+	}
+
+	// Validate limit
+	if limit <= 0 || limit > 50 {
+		limit = 20 // Default limit
+	}
+
+	// Add wildcards for SQL LIKE search
+	searchPattern := "%" + searchTerm + "%"
+
+	query := `
+    SELECT id, username, status
+    FROM users
+    WHERE username LIKE ?
+    ORDER BY
+        CASE
+            WHEN username = ? THEN 1
+            WHEN username LIKE ? THEN 2
+            ELSE 3
+        END,
+        username ASC
+    LIMIT ?`
+
+	// Parameters for the query:
+	// 1. searchPattern for the WHERE clause
+	// 2. searchTerm for exact match priority
+	// 3. searchTerm + "%" for starts-with match priority
+	startsWithPattern := searchTerm + "%"
+
+	rows, err := db.Query(query, searchPattern, searchTerm, startsWithPattern, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search users: %w", err)
+	}
+	defer rows.Close()
+
+	users := make([]models.UserBasic, 0)
+	for rows.Next() {
+		var user models.UserBasic
+		if err := rows.Scan(&user.ID, &user.Username, &user.Status); err != nil {
+			return nil, fmt.Errorf("failed to scan user: %w", err)
+		}
+		users = append(users, user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("error iterating users: %w", err)
+	}
+
+	log.Printf("Found %d users matching '%s'", len(users), searchTerm)
+	return users, nil
+}

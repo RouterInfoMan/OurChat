@@ -228,3 +228,52 @@ func (h *UserHandler) HandleGetUsersByIDs(w http.ResponseWriter, r *http.Request
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(users)
 }
+
+// HandleSearchUsers searches for users by partial username match
+func (h *UserHandler) HandleSearchUsers(w http.ResponseWriter, r *http.Request) {
+	// Get user ID from context (set by auth middleware)
+	_, ok := r.Context().Value("user_id").(int)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	// Get search query from URL parameters
+	searchTerm := r.URL.Query().Get("q")
+	if searchTerm == "" {
+		http.Error(w, "Search query is required", http.StatusBadRequest)
+		return
+	}
+
+	// Validate minimum search length (prevent too broad searches)
+	if len(strings.TrimSpace(searchTerm)) < 4 {
+		http.Error(w, "Search query must be at least 4 characters long", http.StatusBadRequest)
+		return
+	}
+
+	// Get optional limit parameter
+	limit := 20 // Default limit
+	limitStr := r.URL.Query().Get("limit")
+	if limitStr != "" {
+		parsedLimit, err := strconv.Atoi(limitStr)
+		if err == nil && parsedLimit > 0 && parsedLimit <= 50 {
+			limit = parsedLimit
+		}
+	}
+
+	// Search for users
+	users, err := h.DB.SearchUsersByName(strings.TrimSpace(searchTerm), limit)
+	if err != nil {
+		log.Printf("Failed to search users: %v", err)
+		http.Error(w, "Failed to search users", http.StatusInternalServerError)
+		return
+	}
+
+	// Return results
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"users": users,
+		"count": len(users),
+		"query": searchTerm,
+	})
+}
