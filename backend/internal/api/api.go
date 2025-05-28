@@ -84,6 +84,7 @@ func (s *Server) SetupRoutes() {
 	protected.HandleFunc("/chats/{chatID}/messages/search", s.MessageHandler.HandleSearchMessages).Methods("GET")
 
 	// Helper routes
+	protected.HandleFunc("/users/search", s.UserHandler.HandleSearchUsers).Methods("GET")
 	protected.HandleFunc("/users", s.UserHandler.HandleGetUsersByIDs).Methods("GET", "POST")
 
 	// s.Router.PathPrefix("/").HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

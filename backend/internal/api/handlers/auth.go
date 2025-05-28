@@ -145,6 +145,12 @@ func (h *AuthHandler) HandleRegister(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Check if username is too short
+	if len(req.Username) < 4 {
+		http.Error(w, "Username must be at least 4 characters long", http.StatusBadRequest)
+		return
+	}
+
 	// Check if username already exists
 	_, err := h.DB.GetUserByUsername(req.Username)
 	if err == nil {
