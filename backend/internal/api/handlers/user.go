@@ -42,21 +42,23 @@ func (h *UserHandler) HandleGetProfile(w http.ResponseWriter, r *http.Request) {
 
 	// Create response without sensitive fields
 	type ProfileResponse struct {
-		ID        int        `json:"id"`
-		Username  string     `json:"username"`
-		Email     string     `json:"email"`
-		Status    string     `json:"status"`
-		CreatedAt time.Time  `json:"created_at"`
-		LastLogin *time.Time `json:"last_login,omitempty"`
+		ID                int        `json:"id"`
+		Username          string     `json:"username"`
+		Email             string     `json:"email"`
+		ProfilePictureURL *string    `json:"profile_picture_url,omitempty"`
+		Status            string     `json:"status"`
+		CreatedAt         time.Time  `json:"created_at"`
+		LastLogin         *time.Time `json:"last_login,omitempty"`
 	}
 
 	profile := ProfileResponse{
-		ID:        user.ID,
-		Username:  user.Username,
-		Email:     user.Email,
-		Status:    user.Status,
-		CreatedAt: user.CreatedAt,
-		LastLogin: user.LastLogin,
+		ID:                user.ID,
+		Username:          user.Username,
+		Email:             user.Email,
+		ProfilePictureURL: user.ProfilePictureURL,
+		Status:            user.Status,
+		CreatedAt:         user.CreatedAt,
+		LastLogin:         user.LastLogin,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -138,21 +140,23 @@ func (h *UserHandler) HandleUpdateProfile(w http.ResponseWriter, r *http.Request
 
 	// Create response without sensitive fields
 	type ProfileResponse struct {
-		ID        int        `json:"id"`
-		Username  string     `json:"username"`
-		Email     string     `json:"email"`
-		Status    string     `json:"status"`
-		CreatedAt time.Time  `json:"created_at"`
-		LastLogin *time.Time `json:"last_login,omitempty"`
+		ID                int        `json:"id"`
+		Username          string     `json:"username"`
+		Email             string     `json:"email"`
+		ProfilePictureURL *string    `json:"profile_picture_url,omitempty"`
+		Status            string     `json:"status"`
+		CreatedAt         time.Time  `json:"created_at"`
+		LastLogin         *time.Time `json:"last_login,omitempty"`
 	}
 
 	profile := ProfileResponse{
-		ID:        user.ID,
-		Username:  user.Username,
-		Email:     user.Email,
-		Status:    user.Status,
-		CreatedAt: user.CreatedAt,
-		LastLogin: user.LastLogin,
+		ID:                user.ID,
+		Username:          user.Username,
+		Email:             user.Email,
+		ProfilePictureURL: user.ProfilePictureURL,
+		Status:            user.Status,
+		CreatedAt:         user.CreatedAt,
+		LastLogin:         user.LastLogin,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
