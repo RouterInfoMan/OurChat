@@ -132,72 +132,6 @@
 		}
 	}
 
-	// Gestionare selectare conversații
-	//conversationItems.forEach((item) => {
-	//	item.addEventListener('click', function (this: Element) {
-	//		if (!messagesContainer) return;
-
-	//		// Elimină clasa active de la toate conversațiile
-	//		conversationItems.forEach((conv) => {
-	//			conv.classList.remove('active');
-	//		});
-
-	//		// Adaugă clasa active la conversația selectată
-	//		this.classList.add('active');
-
-	//		// Actualizează informațiile din header
-	//		const nameElement = this.querySelector('.conv-details h3');
-	//		const headerName = document.querySelector('.current-conversation h2');
-
-	//		if (nameElement && headerName) {
-	//			const name = nameElement.textContent || '';
-	//			headerName.textContent = name;
-
-	//			// Actualizează avatarul din header
-	//			const avatarImg = this.querySelector('.avatar-wrapper img') as HTMLImageElement | null;
-	//			const headerAvatar = document.querySelector(
-	//				'.current-conversation .avatar-wrapper img'
-	//			) as HTMLImageElement | null;
-
-	//			if (avatarImg && headerAvatar && avatarImg.getAttribute('src')) {
-	//				headerAvatar.setAttribute('src', avatarImg.getAttribute('src') || '');
-	//			}
-
-	//			// Curăță mesageria și adaugă statusul
-	//			messagesContainer.innerHTML = '';
-
-	//			const statusMessage = document.createElement('div');
-	//			statusMessage.className = 'status-message';
-	//			const statusParagraph = document.createElement('p');
-	//			statusParagraph.textContent = `Ai selectat conversația: ${name}`;
-	//			statusMessage.appendChild(statusParagraph);
-	//			messagesContainer.appendChild(statusMessage);
-	//		}
-	//	});
-	//});
-
-	// Funcție pentru integrarea cu backend-ul de read receipts
-	// Aceasta va fi implementată când vei conecta cu backend-ul real
-	//	function updateMessageStatus(messageId: string, status: 'delivered' | 'seen'): void {
-	//		// Găsește mesajul după ID
-	//		const messageElement = document.querySelector(`[data-message-id="${messageId}"]`);
-	//		if (!messageElement) return;
-
-	//		// Găsește read receipt-ul
-	//		const readReceipt = messageElement.querySelector('.read-receipt');
-	//		if (!readReceipt) return;
-
-	//		// Actualizează statusul
-	//		if (status === 'delivered') {
-	//			readReceipt.className = 'read-receipt delivered';
-	//			readReceipt.textContent = 'Livrat';
-	//		} else if (status === 'seen') {
-	//			readReceipt.className = 'read-receipt seen';
-	//			readReceipt.textContent = 'Văzut';
-	//		}
-	//	}
-	//});
-
 	// (Re)setează starea aplicației făcând cereri la backend
 	async function loadEverything() {
 		loading = true;
@@ -309,6 +243,7 @@
 					new_chat_entites = '';
 					new_chat_creating = false;
 				}}
+				title="New Chat"
 			>
 				<svg viewBox="0 0 24 24" width="24" height="24"
 					><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line
@@ -319,7 +254,7 @@
 					></line></svg
 				>
 			</a>
-			<a href="#" class="icon-btn">
+			<a href="#" class="icon-btn" title="Find People">
 				<svg viewBox="0 0 24 24" width="24" height="24"
 					><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"
 					></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"
@@ -328,7 +263,7 @@
 			</a>
 		</div>
 		<div class="bottom-icons">
-			<a href="#" class="icon-btn settings-btn">
+			<a href="#" class="icon-btn settings-btn" title="Settings">
 				<svg viewBox="0 0 24 24" width="24" height="24"
 					><circle cx="12" cy="12" r="3"></circle><path
 						d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"
@@ -340,6 +275,7 @@
 				onclick={() => {
 					goto('/');
 				}}
+				title="Go to Dashboard"
 			>
 				<img src="/default-avatar.png" alt="Profil" />
 			</div>
@@ -347,12 +283,23 @@
 	</div>
 
 	{#if loading}
-		Se încarcă...
+		<div class="loading-container">
+			<div class="loading-spinner"></div>
+			<p>Se încarcă...</p>
+		</div>
+	{:else if error}
+		<div class="error-container">
+			<div class="error-message">
+				<h2>Oops! Ceva nu a mers bine</h2>
+				<p>{error.message}</p>
+				<button class="retry-btn" onclick={loadEverything}>Încearcă din nou</button>
+			</div>
+		</div>
 	{:else if chats !== null}
 		<!-- Sidebar-ul cu lista de conversații -->
 		<div class="sidebar-conversations">
 			<div class="conversations-header">
-				<h2>Chats</h2>
+				<h2>Conversations</h2>
 			</div>
 
 			<div class="conversation-list">
@@ -369,7 +316,7 @@
 						</div>
 						<div class="conv-details">
 							<h3>{chat.name}</h3>
-							<p>Mesaj recent</p>
+							<p>Click to open chat</p>
 						</div>
 					</div>
 				{/each}
@@ -391,23 +338,19 @@
 					</div>
 
 					<div class="messages-container">
-						<div class="status-message">
-							<p>Ai selectat conversația: {selected_chat_data.name}</p>
-						</div>
-
-						<!-- Exemplu de mesaj cu receipt
-						<div class="message-sent">
-							<div class="message-bubble">Salut! Cum merge proiectul?</div>
-							<div class="message-info">
-								<span class="message-time">14:25</span>
-								<span class="read-receipt seen">Văzut</span>
-							</div>
-						</div>
-						-->
 						{#if typeof chat_messages === 'string'}
-							Eroare la încărcarea mesajelor: {chat_messages}
+							<div class="error-in-chat">
+								<p>Eroare la încărcarea mesajelor: {chat_messages}</p>
+							</div>
 						{:else if chat_messages === null}
-							Se încarcă mesajele...
+							<div class="loading-messages">
+								<div class="loading-spinner small"></div>
+								<p>Se încarcă mesajele...</p>
+							</div>
+						{:else if chat_messages.length === 0}
+							<div class="empty-chat">
+								<p>Nu există mesaje încă. Începe conversația!</p>
+							</div>
 						{:else}
 							{#each [...chat_messages].reverse() as message}
 								<!-- todo - verificare message.sender_id === user_id (care e?) -->
@@ -428,7 +371,7 @@
 					</div>
 
 					<div class="message-input-area">
-						<button class="attachment-btn">
+						<button class="attachment-btn" title="Attach File">
 							<svg viewBox="0 0 24 24" width="24" height="24"
 								><path
 									d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
@@ -437,7 +380,7 @@
 						</button>
 						<textarea
 							bind:value={currentMessageText}
-							placeholder="Tastează un mesaj..."
+							placeholder="Type a message..."
 							class="message-input"
 							rows="1"
 							onkeypress={(e) => {
@@ -447,53 +390,85 @@
 								}
 							}}
 						></textarea>
-						<button class="send-btn" onclick={sendMessage}>
-							<svg viewBox="0 0 24 24" width="24" height="24"
-								><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg
-							>
+						<button class="send-btn" onclick={sendMessage} disabled={isSending} title="Send Message">
+							{#if isSending}
+								<div class="loading-spinner tiny"></div>
+							{:else}
+								<svg viewBox="0 0 24 24" width="24" height="24"
+									><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg
+								>
+							{/if}
 						</button>
 					</div>
 				</div>
 			{:else if selected_chat_data === true}
-				Se încarcă conversația...
+				<div class="loading-container">
+					<div class="loading-spinner"></div>
+					<p>Se încarcă conversația...</p>
+				</div>
 			{:else}
-				eroare
+				<div class="error-container">
+					<div class="error-message">
+						<h2>Eroare la încărcare</h2>
+						<p>Nu s-au putut încărca detaliile conversației</p>
+					</div>
+				</div>
 			{/if}
 		{:else}
-			Alege un chat din stânga.
+			<div class="welcome-chat">
+				<div class="welcome-content">
+					<img src="/ourchat_logo.png" alt="OurChat Logo" class="welcome-logo" />
+					<h2>Welcome to OurChat!</h2>
+					<p>Select a conversation from the left sidebar to start chatting, or create a new chat using the + button.</p>
+				</div>
+			</div>
 		{/if}
-	{:else}
-		eroare
 	{/if}
 </div>
 
 {#if show_new_chat_popover}
 	<div class="popover-overlay">
 		<div class="popover-content">
+			<h3>Create New Chat</h3>
 			<label>
-				Cu cine veri să vorbești? (format: [1,2,3] cu id-uri de utilizatori):
-				<input type="text" bind:value={new_chat_entites} />
+				Enter user IDs (format: [1,2,3]):
+				<input type="text" bind:value={new_chat_entites} placeholder="[1,2,3]" />
 			</label>
-			<div style="margin-top:10px;">
-				<button onclick={createChat}>Adaugă</button>
+			<div class="popover-actions">
+				<button class="primary-btn" onclick={createChat} disabled={new_chat_creating === true}>
+					{#if new_chat_creating === true}
+						<div class="loading-spinner tiny"></div>
+						Creating...
+					{:else}
+						Create Chat
+					{/if}
+				</button>
 				<button
+					class="secondary-btn"
 					onclick={() => {
 						show_new_chat_popover = false;
-					}}>Închide</button
+					}}>Cancel</button
 				>
 			</div>
-			<div style="color: red; margin-top: 10px;">
-				{#if typeof new_chat_creating === 'string'}
-					Eroare: {new_chat_creating}
-				{:else if new_chat_creating === true}
-					Se creează chat...
-				{/if}
-			</div>
+			{#if typeof new_chat_creating === 'string'}
+				<div class="popover-error">
+					Error: {new_chat_creating}
+				</div>
+			{/if}
 		</div>
 	</div>
 {/if}
 
 <style>
+	/* Global body styling */
+	:global(body) {
+		margin: 0;
+		padding: 0;
+		font-family: 'Arial', sans-serif;
+		background: linear-gradient(135deg, #6a5af9 0%, #4a91ff 100%);
+		overflow: hidden;
+	}
+
 	/* Layout de bază */
 	.chat-layout {
 		display: flex;
@@ -504,17 +479,87 @@
 		bottom: 0;
 		width: 100%;
 		height: 100vh;
+		background: linear-gradient(135deg, #6a5af9 0%, #4a91ff 100%);
+	}
+
+	/* Loading and Error States */
+	.loading-container,
+	.error-container {
+		flex: 1;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		color: white;
+		text-align: center;
+		padding: 40px;
+	}
+
+	.loading-spinner {
+		width: 40px;
+		height: 40px;
+		border: 4px solid rgba(255, 255, 255, 0.3);
+		border-top: 4px solid white;
+		border-radius: 50%;
+		animation: spin 1s linear infinite;
+		margin-bottom: 20px;
+	}
+
+	.loading-spinner.small {
+		width: 30px;
+		height: 30px;
+		border-width: 3px;
+		margin-bottom: 15px;
+	}
+
+	.loading-spinner.tiny {
+		width: 20px;
+		height: 20px;
+		border-width: 2px;
+		margin: 0;
+	}
+
+	@keyframes spin {
+		0% { transform: rotate(0deg); }
+		100% { transform: rotate(360deg); }
+	}
+
+	.error-message h2 {
+		margin: 0 0 10px 0;
+		font-size: 24px;
+	}
+
+	.error-message p {
+		margin: 0 0 20px 0;
+		opacity: 0.8;
+	}
+
+	.retry-btn {
+		background-color: rgba(255, 255, 255, 0.2);
+		color: white;
+		border: none;
+		padding: 12px 24px;
+		border-radius: 20px;
+		cursor: pointer;
+		font-size: 16px;
+		transition: all 0.3s ease;
+	}
+
+	.retry-btn:hover {
+		background-color: rgba(255, 255, 255, 0.3);
+		transform: translateY(-2px);
 	}
 
 	/* Sidebar-ul cu iconițe (albastru) */
 	.sidebar-icons {
 		width: 60px;
-		background-color: #1900fb;
+		background: linear-gradient(180deg, #5e4bff 0%, #4a68eb 100%);
 		display: flex;
 		flex-direction: column;
 		justify-content: space-between;
 		padding: 15px 0;
 		z-index: 10;
+		box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1);
 	}
 
 	.top-icons,
@@ -532,12 +577,14 @@
 		display: flex;
 		align-items: center;
 		justify-content: center;
-		color: rgb(255, 255, 255);
-		transition: background-color 0.2s;
+		color: white;
+		transition: all 0.3s ease;
+		cursor: pointer;
 	}
 
 	.icon-btn:hover {
-		background-color: rgba(255, 255, 255, 0.1);
+		background-color: rgba(255, 255, 255, 0.2);
+		transform: scale(1.1);
 	}
 
 	.icon-btn svg {
@@ -555,6 +602,13 @@
 		overflow: hidden;
 		margin-top: 10px;
 		border: 2px solid rgba(255, 255, 255, 0.3);
+		cursor: pointer;
+		transition: all 0.3s ease;
+	}
+
+	.profile-img:hover {
+		border-color: rgba(255, 255, 255, 0.6);
+		transform: scale(1.1);
 	}
 
 	.profile-img img {
@@ -565,27 +619,27 @@
 
 	/* Sidebar-ul cu conversații */
 	.sidebar-conversations {
-		width: 260px;
-		background-color: rgb(0, 145, 255);
-		border-right: 1px solid #000000;
+		width: 280px;
+		background: rgba(255, 255, 255, 0.1);
+		backdrop-filter: blur(10px);
+		border-right: 1px solid rgba(255, 255, 255, 0.2);
 		display: flex;
 		flex-direction: column;
+		color: white;
 	}
 
 	/* Header pentru secțiunea de conversații */
 	.conversations-header {
-		padding: 10px 20px; /* Reduce padding-ul de sus și jos la 10px, la fel ca în chat-header */
-		border-bottom: 1px solid #000000;
-		height: 60px; /* Setează o înălțime fixă */
-		display: flex;
-		align-items: center; /* Centrează vertical conținutul */
+		padding: 20px;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+		background: rgba(255, 255, 255, 0.05);
 	}
 
 	.conversations-header h2 {
 		margin: 0;
 		font-size: 22px;
 		font-weight: 600;
-		color: #050505;
+		color: white;
 	}
 
 	.conversation-list {
@@ -596,18 +650,19 @@
 	.conversation-item {
 		display: flex;
 		align-items: center;
-		padding: 12px 15px;
+		padding: 15px 20px;
 		cursor: pointer;
-		transition: background-color 0.2s;
-		border-bottom: 1px solid #000000;
-	}
-
-	.conversation-item.active {
-		background-color: rgb(47, 64, 255);
+		transition: all 0.3s ease;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 	}
 
 	.conversation-item:hover {
-		background-color: #f5f7fa;
+		background-color: rgba(255, 255, 255, 0.1);
+	}
+
+	.conversation-item.active {
+		background-color: rgba(255, 255, 255, 0.2);
+		border-left: 4px solid white;
 	}
 
 	.avatar-wrapper {
@@ -616,7 +671,7 @@
 		border-radius: 50%;
 		overflow: hidden;
 		flex-shrink: 0;
-		background-color: #000000;
+		border: 2px solid rgba(255, 255, 255, 0.3);
 	}
 
 	.avatar-wrapper img {
@@ -632,9 +687,9 @@
 
 	.conv-details h3 {
 		margin: 0;
-		font-size: 14px;
+		font-size: 16px;
 		font-weight: 500;
-		color: #050505;
+		color: white;
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
@@ -642,11 +697,46 @@
 
 	.conv-details p {
 		margin: 4px 0 0;
-		font-size: 12px;
-		color: #ffffff;
+		font-size: 13px;
+		color: rgba(255, 255, 255, 0.7);
 		white-space: nowrap;
 		overflow: hidden;
 		text-overflow: ellipsis;
+	}
+
+	/* Welcome screen when no chat selected */
+	.welcome-chat {
+		flex: 1;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		color: white;
+		text-align: center;
+	}
+
+	.welcome-content {
+		max-width: 400px;
+		padding: 40px 20px;
+	}
+
+	.welcome-logo {
+		width: 120px;
+		height: 120px;
+		margin-bottom: 30px;
+		opacity: 0.9;
+	}
+
+	.welcome-content h2 {
+		font-size: 28px;
+		margin: 0 0 20px 0;
+		font-weight: 600;
+	}
+
+	.welcome-content p {
+		font-size: 16px;
+		line-height: 1.5;
+		opacity: 0.8;
+		margin: 0;
 	}
 
 	/* Zona principală de chat */
@@ -654,16 +744,15 @@
 		flex: 1;
 		display: flex;
 		flex-direction: column;
-		background: linear-gradient(to left, #4cb1ff, #88a8ff);
+		background: rgba(255, 255, 255, 0.05);
+		backdrop-filter: blur(10px);
 	}
 
 	.chat-header {
-		height: 60px; /* Înălțime fixă, 60px (40px conținut + 20px total padding) */
-		padding: 10px 20px;
-		border-bottom: 1px solid #000000;
-		background-color: rgb(0, 145, 255);
-		display: flex;
-		align-items: center;
+		padding: 20px;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+		background: rgba(255, 255, 255, 0.1);
+		color: white;
 	}
 
 	.current-conversation {
@@ -672,15 +761,15 @@
 	}
 
 	.current-conversation .avatar-wrapper {
-		width: 40px;
-		height: 40px;
+		width: 50px;
+		height: 50px;
 	}
 
 	.current-conversation h2 {
 		margin: 0 0 0 15px;
-		font-size: 16px;
+		font-size: 20px;
 		font-weight: 500;
-		color: #050505;
+		color: white;
 	}
 
 	.messages-container {
@@ -689,16 +778,39 @@
 		overflow-y: auto;
 		display: flex;
 		flex-direction: column;
-		gap: 10px;
+		gap: 12px;
 	}
 
+	/* Message states */
+	.loading-messages,
+	.error-in-chat,
+	.empty-chat {
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		justify-content: center;
+		height: 100%;
+		color: rgba(255, 255, 255, 0.8);
+		text-align: center;
+	}
+
+	.error-in-chat p,
+	.empty-chat p {
+		background: rgba(255, 255, 255, 0.1);
+		padding: 15px 20px;
+		border-radius: 10px;
+		margin: 0;
+	}
+
+	/* Message bubbles */
 	.message-bubble {
-		padding: 10px 15px;
+		padding: 12px 16px;
 		border-radius: 18px;
 		max-width: 100%;
 		word-wrap: break-word;
 		overflow-wrap: break-word;
 		word-break: break-word;
+		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 	}
 
 	.message-sent {
@@ -712,25 +824,24 @@
 	}
 
 	.message-sent .message-bubble {
-		background-color: #1877f2;
+		background: linear-gradient(135deg, #5977ff 0%, #4a68eb 100%);
 		color: white;
-		border-bottom-right-radius: 4px;
+		border-bottom-right-radius: 6px;
 	}
 
 	.message-received .message-bubble {
-		background-color: white;
-		color: #050505;
-		border-bottom-left-radius: 4px;
-		box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+		background: rgba(255, 255, 255, 0.9);
+		color: #333;
+		border-bottom-left-radius: 6px;
 	}
 
-	/* Stiluri pentru read receipt și informații mesaj */
+	/* Message info */
 	.message-info {
 		display: flex;
 		align-items: center;
 		font-size: 11px;
-		color: #65676b;
-		margin-top: 2px;
+		color: rgba(255, 255, 255, 0.7);
+		margin-top: 4px;
 	}
 
 	.message-sent .message-info {
@@ -743,19 +854,20 @@
 	}
 
 	.message-time {
-		margin-right: 4px;
+		margin-right: 6px;
 	}
 
 	.read-receipt {
 		display: flex;
 		align-items: center;
+		font-size: 10px;
 	}
 
 	.read-receipt:before {
 		content: '';
 		display: inline-block;
-		width: 14px;
-		height: 14px;
+		width: 12px;
+		height: 12px;
 		margin-right: 3px;
 		background-position: center;
 		background-repeat: no-repeat;
@@ -763,69 +875,56 @@
 	}
 
 	.read-receipt.delivered:before {
-		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2365676B' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.7)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
 	}
 
 	.read-receipt.seen:before {
-		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%231877F2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
-		color: #1877f2;
+		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
+		color: #ffffff;
 	}
 
-	.status-message {
-		align-self: center;
-		background-color: #e4e6eb;
-		padding: 8px 16px;
-		border-radius: 18px;
-		color: #65676b;
-		font-size: 13px;
-		max-width: 70%;
-		text-align: center;
-	}
-
-	.status-message p {
-		margin: 0;
-	}
-
+	/* Message input area */
 	.message-input-area {
-		padding: 10px 15px;
-		background-color: rgb(126, 199, 255);
-		border-top: 1px solid #000000;
+		padding: 20px;
+		background: rgba(255, 255, 255, 0.1);
+		border-top: 1px solid rgba(255, 255, 255, 0.2);
 		display: flex;
 		align-items: center;
-		gap: 10px;
+		gap: 12px;
 	}
 
 	.attachment-btn,
 	.send-btn {
-		width: 36px;
-		height: 36px;
+		width: 44px;
+		height: 44px;
 		border-radius: 50%;
 		border: none;
-		background: none;
+		background: rgba(255, 255, 255, 0.2);
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		cursor: pointer;
 		flex-shrink: 0;
-	}
-
-	.attachment-btn {
-		color: #65676b;
-	}
-
-	.send-btn {
-		color: #1877f2;
+		transition: all 0.3s ease;
+		color: white;
 	}
 
 	.attachment-btn:hover,
 	.send-btn:hover {
-		background-color: #0037b8;
+		background: rgba(255, 255, 255, 0.3);
+		transform: scale(1.1);
+	}
+
+	.send-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+		transform: none;
 	}
 
 	.attachment-btn svg,
 	.send-btn svg {
-		width: 20px;
-		height: 20px;
+		width: 22px;
+		height: 22px;
 		stroke-width: 2;
 		fill: none;
 		stroke: currentColor;
@@ -839,24 +938,192 @@
 	.message-input {
 		flex: 1;
 		border: none;
-		background-color: #a9d7ff;
-		border-radius: 20px;
-		padding: 9px 12px;
+		background: rgba(255, 255, 255, 0.2);
+		border-radius: 22px;
+		padding: 12px 18px;
 		resize: none;
 		font-size: 15px;
 		max-height: 120px;
 		min-height: 20px;
 		outline: none;
+		color: white;
+		font-family: inherit;
+		transition: all 0.3s ease;
+	}
+
+	.message-input::placeholder {
+		color: rgba(255, 255, 255, 0.7);
 	}
 
 	.message-input:focus {
+		background: rgba(255, 255, 255, 0.3);
+		box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+	}
+
+	/* Popover styles */
+	.popover-overlay {
+		position: fixed;
+		top: 0;
+		left: 0;
+		right: 0;
+		bottom: 0;
+		background: rgba(0, 0, 0, 0.5);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		z-index: 1000;
+		backdrop-filter: blur(5px);
+	}
+
+	.popover-content {
+		background: linear-gradient(135deg, #6a5af9 0%, #4a91ff 100%);
+		padding: 30px;
+		border-radius: 20px;
+		box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+		min-width: 400px;
+		max-width: 90vw;
+		color: white;
+		border: 1px solid rgba(255, 255, 255, 0.2);
+	}
+
+	.popover-content h3 {
+		margin: 0 0 20px 0;
+		font-size: 24px;
+		font-weight: 600;
+		text-align: center;
+	}
+
+	.popover-content label {
+		display: block;
+		margin-bottom: 20px;
+		font-size: 16px;
+		font-weight: 500;
+	}
+
+	.popover-content input {
+		width: 100%;
+		padding: 12px 16px;
+		border-radius: 10px;
+		border: none;
+		background: rgba(255, 255, 255, 0.2);
+		color: white;
+		font-size: 16px;
+		margin-top: 8px;
 		outline: none;
+		transition: all 0.3s ease;
+	}
+
+	.popover-content input::placeholder {
+		color: rgba(255, 255, 255, 0.7);
+	}
+
+	.popover-content input:focus {
+		background: rgba(255, 255, 255, 0.3);
+		box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+	}
+
+	.popover-actions {
+		display: flex;
+		gap: 12px;
+		justify-content: center;
+	}
+
+	.primary-btn,
+	.secondary-btn {
+		padding: 12px 24px;
+		border-radius: 25px;
+		border: none;
+		font-size: 16px;
+		font-weight: 600;
+		cursor: pointer;
+		transition: all 0.3s ease;
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.primary-btn {
+		background: rgba(255, 255, 255, 0.2);
+		color: white;
+	}
+
+	.primary-btn:hover:not(:disabled) {
+		background: rgba(255, 255, 255, 0.3);
+		transform: translateY(-2px);
+	}
+
+	.primary-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+		transform: none;
+	}
+
+	.secondary-btn {
+		background: transparent;
+		color: white;
+		border: 2px solid rgba(255, 255, 255, 0.3);
+	}
+
+	.secondary-btn:hover {
+		background: rgba(255, 255, 255, 0.1);
+		border-color: rgba(255, 255, 255, 0.5);
+	}
+
+	.popover-error {
+		color: #ff6b6b;
+		text-align: center;
+		margin-top: 15px;
+		font-size: 14px;
+		background: rgba(255, 255, 255, 0.1);
+		padding: 10px;
+		border-radius: 8px;
+		border: 1px solid rgba(255, 107, 107, 0.3);
+	}
+
+	/* Scrollbar styling */
+	.conversation-list::-webkit-scrollbar,
+	.messages-container::-webkit-scrollbar {
+		width: 6px;
+	}
+
+	.conversation-list::-webkit-scrollbar-track,
+	.messages-container::-webkit-scrollbar-track {
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	.conversation-list::-webkit-scrollbar-thumb,
+	.messages-container::-webkit-scrollbar-thumb {
+		background: rgba(255, 255, 255, 0.3);
+		border-radius: 3px;
+	}
+
+	.conversation-list::-webkit-scrollbar-thumb:hover,
+	.messages-container::-webkit-scrollbar-thumb:hover {
+		background: rgba(255, 255, 255, 0.5);
 	}
 
 	/* Media queries pentru responsivitate */
 	@media (max-width: 768px) {
 		.sidebar-conversations {
-			width: 200px;
+			width: 240px;
+		}
+
+		.welcome-content {
+			padding: 20px;
+		}
+
+		.welcome-logo {
+			width: 80px;
+			height: 80px;
+		}
+
+		.welcome-content h2 {
+			font-size: 24px;
+		}
+
+		.popover-content {
+			min-width: 320px;
+			padding: 20px;
 		}
 	}
 
@@ -867,9 +1134,9 @@
 
 		.sidebar-icons {
 			width: 100%;
-			height: 50px;
+			height: 60px;
 			flex-direction: row;
-			padding: 0 10px;
+			padding: 0 15px;
 		}
 
 		.top-icons,
@@ -879,59 +1146,51 @@
 
 		.sidebar-conversations {
 			width: 100%;
-			height: 80px;
+			height: 120px;
 			overflow-x: auto;
 			overflow-y: hidden;
-			display: flex;
-			flex-direction: row;
 		}
 
 		.conversations-header {
+			writing-mode: vertical-rl;
 			width: 80px;
 			height: 100%;
 			display: flex;
 			align-items: center;
 			justify-content: center;
-			border-right: 1px solid #e4e6eb;
+			border-right: 1px solid rgba(255, 255, 255, 0.2);
 			border-bottom: none;
 		}
 
 		.conversation-list {
 			display: flex;
 			flex-direction: row;
+			height: 100%;
 		}
 
 		.conversation-item {
 			min-width: 200px;
-			border-right: 1px solid #e4e6eb;
+			height: 100%;
+			border-right: 1px solid rgba(255, 255, 255, 0.1);
 			border-bottom: none;
 		}
 
 		.chat-area {
-			height: calc(100vh - 130px);
+			height: calc(100vh - 180px);
 		}
-	}
-	.popover-overlay {
-		position: fixed;
-		top: 0;
-		left: 0;
-		right: 0;
-		bottom: 0;
-		background: rgba(0, 0, 0, 0.2);
-		display: flex;
-		align-items: center;
-		justify-content: center;
-		z-index: 1000;
-	}
-	.popover-content {
-		background: #fff;
-		padding: 24px 20px 16px 20px;
-		border-radius: 12px;
-		box-shadow: 0 2px 16px rgba(0, 0, 0, 0.18);
-		min-width: 300px;
-		max-width: 90vw;
-		display: flex;
-		flex-direction: column;
-		gap: 12px;
+
+		.welcome-content {
+			padding: 15px;
+		}
+
+		.popover-content {
+			min-width: 280px;
+			margin: 20px;
+		}
+
+		.popover-actions {
+			flex-direction: column;
+			gap: 8px;
+		}
 	}
 </style>
