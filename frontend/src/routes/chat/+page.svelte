@@ -14,15 +14,12 @@
 	let error: Error | null = $state(null);
 
 	let selected_chat: number | null = $state(null);
-	// false = nu se încarcă, string = mesaj de eroare
-	// true = se încarcă
 	let selected_chat_data:
 		| {
 				id: number;
 				name: string;
 		  }
 		| boolean = $state(false);
-	// string = mesaj de eroare, null = se incarcă
 	let chat_messages:
 		| {
 				id: number;
@@ -35,25 +32,31 @@
 		| string
 		| null = $state(null);
 
+	// User search and chat creation states
 	let show_new_chat_popover = $state(false);
-	let new_chat_entites = $state('');
-	// false = nu se creează chat, string = mesaj de eroare
-	// true = se creează chat
 	let new_chat_creating: boolean | string = $state(false);
+	let user_search_query = $state('');
+	let search_results: any[] = $state([]);
+	let selected_users: any[] = $state([]);
+	let searching_users = $state(false);
+	let search_error = $state('');
+	let chat_type: 'direct' | 'group' = $state('direct');
+	let group_name = $state('');
+
+	// Profile management states
+	let show_profile_modal = $state(false);
+	let current_user: any = $state(null);
+	let profile_picture_file: File | null = $state(null);
+	let uploading_picture = $state(false);
+	let profile_update_message = $state('');
 
 	let messageInput: HTMLTextAreaElement | null;
 	let currentMessageText = $state('');
 	let isSending = $state(false);
 
 	onMount(async () => {
-		// Selectează elementele DOM cu type assertions
 		messageInput = document.querySelector('.message-input') as HTMLTextAreaElement | null;
-		const messagesContainer = document.querySelector(
-			'.messages-container'
-		) as HTMLDivElement | null;
-		const conversationItems = document.querySelectorAll('.conversation-item');
 
-		// Auto-resize pentru textarea
 		if (messageInput) {
 			messageInput.addEventListener('input', function () {
 				this.style.height = 'auto';
@@ -62,44 +65,238 @@
 			});
 		}
 
-		loadEverything();
+		await loadEverything();
+		await loadCurrentUser();
 	});
 
-	// Funcția pentru a trimite un mesaj
-	async function sendMessage(): Promise<void> {
-		//if (!messageInput || !selected_chat) return;
+	// Load current user profile
+	async function loadCurrentUser() {
+		try {
+			const response = await fetch('/api/profile', {
+				method: 'GET',
+				headers: {
+					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
+				}
+			});
 
+			if (response.ok) {
+				current_user = await response.json();
+			}
+		} catch (error) {
+			console.error('Error loading user profile:', error);
+		}
+	}
+
+	// Search users function
+	async function searchUsers() {
+		if (user_search_query.trim().length < 3) {
+			search_results = [];
+			search_error = '';
+			return;
+		}
+
+		try {
+			searching_users = true;
+			search_error = '';
+
+			const response = await fetch(`/api/users/search?q=${encodeURIComponent(user_search_query.trim())}&limit=10`, {
+				method: 'GET',
+				headers: {
+					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
+				}
+			});
+
+			if (!response.ok) {
+				throw new Error('Eroare la căutarea utilizatorilor');
+			}
+
+			const data = await response.json();
+			search_results = data.users || [];
+		} catch (error: any) {
+			console.error('Error searching users:', error);
+			search_error = error.message || 'Eroare la căutarea utilizatorilor';
+			search_results = [];
+		} finally {
+			searching_users = false;
+		}
+	}
+
+	// Add user to selected list
+	function addUserToSelection(user: any) {
+		if (chat_type === 'direct' && selected_users.length >= 1) {
+			selected_users = [user];
+		} else if (!selected_users.find(u => u.id === user.id)) {
+			selected_users = [...selected_users, user];
+		}
+		user_search_query = '';
+		search_results = [];
+	}
+
+	// Remove user from selected list
+	function removeUserFromSelection(userId: number) {
+		selected_users = selected_users.filter(u => u.id !== userId);
+	}
+
+	// Handle chat type change
+	function handleChatTypeChange(type: 'direct' | 'group') {
+		chat_type = type;
+		if (type === 'direct' && selected_users.length > 1) {
+			selected_users = selected_users.slice(0, 1);
+		}
+		if (type === 'direct') {
+			group_name = '';
+		}
+	}
+
+	// Create chat with selected users
+	async function createChat() {
+		try {
+			new_chat_creating = true;
+
+			if (selected_users.length === 0) {
+				throw new Error('Selectează cel puțin un utilizator');
+			}
+
+			if (chat_type === 'group' && !group_name.trim()) {
+				throw new Error('Introdu un nume pentru grup');
+			}
+
+			const user_ids = selected_users.map(u => u.id);
+
+			const response = await fetch('/api/chats', {
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`,
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					type: chat_type,
+					users: user_ids,
+					name: chat_type === 'group' ? group_name.trim() : undefined
+				})
+			});
+
+			if (!response.ok) {
+				const errorText = await response.text();
+				throw new Error(errorText || 'Eroare la crearea chat-ului');
+			}
+
+			new_chat_creating = false;
+			show_new_chat_popover = false;
+			resetChatCreation();
+			await loadEverything();
+		} catch (error: any) {
+			console.error('Error:', error);
+			new_chat_creating = error.message || 'A apărut o eroare la crearea chat-ului.';
+		}
+	}
+
+	// Reset chat creation form
+	function resetChatCreation() {
+		selected_users = [];
+		user_search_query = '';
+		search_results = [];
+		chat_type = 'direct';
+		group_name = '';
+		search_error = '';
+		new_chat_creating = false;
+	}
+
+	// Upload profile picture
+	async function uploadProfilePicture() {
+		if (!profile_picture_file) return;
+
+		try {
+			uploading_picture = true;
+			profile_update_message = '';
+
+			const formData = new FormData();
+			formData.append('profile_picture', profile_picture_file);
+
+			const response = await fetch('/api/profile/picture', {
+				method: 'POST',
+				headers: {
+					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
+				},
+				body: formData
+			});
+
+			if (!response.ok) {
+				const errorData = await response.json();
+				throw new Error(errorData.message || 'Eroare la încărcarea pozei');
+			}
+
+			const data = await response.json();
+			profile_update_message = 'Poza de profil a fost actualizată!';
+
+			// Reload current user to get updated profile picture
+			await loadCurrentUser();
+
+			// Reset file input
+			profile_picture_file = null;
+			const fileInput = document.getElementById('profile-picture-input') as HTMLInputElement;
+			if (fileInput) fileInput.value = '';
+
+		} catch (error: any) {
+			console.error('Error uploading profile picture:', error);
+			profile_update_message = error.message || 'Eroare la încărcarea pozei';
+		} finally {
+			uploading_picture = false;
+		}
+	}
+
+	// Handle file selection
+	function handleFileSelect(event: Event) {
+		const target = event.target as HTMLInputElement;
+		const file = target.files?.[0];
+
+		if (file) {
+			// Validate file type
+			if (!file.type.startsWith('image/')) {
+				profile_update_message = 'Te rog selectează un fișier imagine';
+				return;
+			}
+
+			// Validate file size (5MB)
+			if (file.size > 5 * 1024 * 1024) {
+				profile_update_message = 'Imaginea este prea mare. Mărimea maximă este 5MB';
+				return;
+			}
+
+			profile_picture_file = file;
+			profile_update_message = '';
+		}
+	}
+
+	// Rest of the existing functions...
+	async function sendMessage(): Promise<void> {
 		const text = currentMessageText.trim();
 		if (!text || isSending) return;
 
 		try {
 			isSending = true;
 
-			// Crează un obiect temporar de mesaj pentru afișarea imediată în UI
 			const tempMessage = {
-				id: Date.now(), // ID temporar
-				sender_id: -1, // Va fi înlocuit de backend
+				id: Date.now(),
+				sender_id: -1,
 				chat_id: selected_chat,
 				content: text,
 				created_at: new Date().toISOString(),
 				is_read: 'false'
 			};
 
-			// Adaugă mesajul temporar la lista de mesaje pentru feedback instant
 			if (Array.isArray(chat_messages)) {
 				chat_messages = [...chat_messages, tempMessage];
 			} else {
 				chat_messages = [tempMessage];
 			}
 
-			// Golește input-ul
 			currentMessageText = '';
 			if (messageInput) {
 				messageInput.value = '';
 				messageInput.style.height = 'auto';
 			}
 
-			// Scroll la ultima poziție după ce DOM-ul s-a actualizat
 			setTimeout(() => {
 				const messagesContainer = document.querySelector('.messages-container');
 				if (messagesContainer) {
@@ -107,7 +304,6 @@
 				}
 			}, 50);
 
-			// Trimite mesajul la server
 			const response = await fetch(`/api/chats/${selected_chat}/messages`, {
 				method: 'POST',
 				headers: {
@@ -123,7 +319,6 @@
 				throw new Error('Eroare la trimiterea mesajului');
 			}
 
-			// Reîncarcă mesajele pentru a obține mesajul cu ID-ul real
 			await loadChatMessages();
 		} catch (error) {
 			console.error('Error sending message:', error);
@@ -132,7 +327,6 @@
 		}
 	}
 
-	// (Re)setează starea aplicației făcând cereri la backend
 	async function loadEverything() {
 		loading = true;
 		chats = null;
@@ -155,36 +349,6 @@
 			error = err as Error;
 		} finally {
 			loading = false;
-		}
-	}
-
-	async function createChat() {
-		try {
-			new_chat_creating = true;
-			let new_chat_users = JSON.parse(new_chat_entites) as number[];
-
-			const response = await fetch('api/chats', {
-				method: 'POST',
-				headers: {
-					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`,
-					'Content-Type': 'application/json'
-				},
-				body: JSON.stringify({
-					type: new_chat_users.length > 1 ? 'group' : 'direct',
-					users: new_chat_users,
-					name: new_chat_users.length > 1 ? 'Group Chat ' + Math.random() : undefined
-				})
-			});
-
-			if (!response.ok) {
-				throw new Error(await response.text());
-			}
-
-			new_chat_creating = false;
-			await loadEverything();
-		} catch (error: any) {
-			console.error('Error:', error);
-			new_chat_creating = error.message || 'A apărut o eroare la crearea chat-ului.';
 		}
 	}
 
@@ -232,7 +396,7 @@
 </script>
 
 <div class="chat-layout">
-	<!-- Sidebar-ul albastru îngust -->
+	<!-- Sidebar-ul cu iconițe -->
 	<div class="sidebar-icons">
 		<div class="top-icons">
 			<a
@@ -240,8 +404,7 @@
 				class="icon-btn"
 				onclick={() => {
 					show_new_chat_popover = true;
-					new_chat_entites = '';
-					new_chat_creating = false;
+					resetChatCreation();
 				}}
 				title="New Chat"
 			>
@@ -273,11 +436,14 @@
 			<div
 				class="profile-img"
 				onclick={() => {
-					goto('/');
+					show_profile_modal = true;
 				}}
-				title="Go to Dashboard"
+				title="Profile Settings"
 			>
-				<img src="/default-avatar.png" alt="Profil" />
+				<img
+					src={current_user?.profile_picture_url || "/default-avatar.png"}
+					alt="Profil"
+				/>
 			</div>
 		</div>
 	</div>
@@ -326,7 +492,6 @@
 		<!-- Zona principală de chat -->
 		{#if selected_chat !== null}
 			{#if typeof selected_chat_data === 'object'}
-				<!-- Zona de mesaje -->
 				<div class="chat-area">
 					<div class="chat-header">
 						<div class="current-conversation">
@@ -353,8 +518,7 @@
 							</div>
 						{:else}
 							{#each [...chat_messages].reverse() as message}
-								<!-- todo - verificare message.sender_id === user_id (care e?) -->
-								<div class={message.sender_id === 1 ? 'message-received' : 'message-sent'}>
+								<div class={message.sender_id === current_user?.id ? 'message-sent' : 'message-received'}>
 									<div class="message-bubble">{message.content}</div>
 									<div class="message-info">
 										<span class="message-time"
@@ -426,14 +590,121 @@
 	{/if}
 </div>
 
+<!-- New Chat Popover -->
 {#if show_new_chat_popover}
 	<div class="popover-overlay">
-		<div class="popover-content">
+		<div class="popover-content large">
 			<h3>Create New Chat</h3>
-			<label>
-				Enter user IDs (format: [1,2,3]):
-				<input type="text" bind:value={new_chat_entites} placeholder="[1,2,3]" />
-			</label>
+
+			<!-- Chat Type Selection -->
+			<div class="chat-type-selector">
+				<button
+					class="type-btn {chat_type === 'direct' ? 'active' : ''}"
+					onclick={() => handleChatTypeChange('direct')}
+				>
+					<svg viewBox="0 0 24 24" width="20" height="20">
+						<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+						<circle cx="12" cy="7" r="4"></circle>
+					</svg>
+					Direct Chat
+				</button>
+				<button
+					class="type-btn {chat_type === 'group' ? 'active' : ''}"
+					onclick={() => handleChatTypeChange('group')}
+				>
+					<svg viewBox="0 0 24 24" width="20" height="20">
+						<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+						<circle cx="9" cy="7" r="4"></circle>
+						<path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+						<path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+					</svg>
+					Group Chat
+				</button>
+			</div>
+
+			<!-- Group Name Input (only for group chats) -->
+			{#if chat_type === 'group'}
+				<div class="form-group">
+					<label>Group Name:</label>
+					<input
+						type="text"
+						bind:value={group_name}
+						placeholder="Enter group name..."
+						class="group-name-input"
+					/>
+				</div>
+			{/if}
+
+			<!-- User Search -->
+			<div class="form-group">
+				<label>Search Users {chat_type === 'direct' ? '(select 1)' : '(select multiple)'}:</label>
+				<div class="search-container">
+					<input
+						type="text"
+						bind:value={user_search_query}
+						placeholder="Type username to search..."
+						oninput={searchUsers}
+						class="user-search-input"
+					/>
+					{#if searching_users}
+						<div class="search-loading">
+							<div class="loading-spinner tiny"></div>
+						</div>
+					{/if}
+				</div>
+
+				{#if search_error}
+					<div class="search-error">{search_error}</div>
+				{/if}
+
+				<!-- Search Results -->
+				{#if search_results.length > 0}
+					<div class="search-results">
+						{#each search_results as user}
+							<div class="user-result" onclick={() => addUserToSelection(user)}>
+								<div class="user-avatar">
+									<img src={user.profile_picture_url || "/default-avatar.png"} alt={user.username} />
+								</div>
+								<div class="user-info">
+									<span class="username">{user.username}</span>
+									<span class="user-status status-{user.status}">{user.status}</span>
+								</div>
+								<button class="add-user-btn">
+									<svg viewBox="0 0 24 24" width="16" height="16">
+										<circle cx="12" cy="12" r="10"></circle>
+										<line x1="12" y1="8" x2="12" y2="16"></line>
+										<line x1="8" y1="12" x2="16" y2="12"></line>
+									</svg>
+								</button>
+							</div>
+						{/each}
+					</div>
+				{/if}
+			</div>
+
+			<!-- Selected Users -->
+			{#if selected_users.length > 0}
+				<div class="form-group">
+					<label>Selected Users:</label>
+					<div class="selected-users">
+						{#each selected_users as user}
+							<div class="selected-user">
+								<div class="user-avatar small">
+									<img src={user.profile_picture_url || "/default-avatar.png"} alt={user.username} />
+								</div>
+								<span class="username">{user.username}</span>
+								<button class="remove-user-btn" onclick={() => removeUserFromSelection(user.id)}>
+									<svg viewBox="0 0 24 24" width="14" height="14">
+										<line x1="18" y1="6" x2="6" y2="18"></line>
+										<line x1="6" y1="6" x2="18" y2="18"></line>
+									</svg>
+								</button>
+							</div>
+						{/each}
+					</div>
+				</div>
+			{/if}
+
 			<div class="popover-actions">
 				<button class="primary-btn" onclick={createChat} disabled={new_chat_creating === true}>
 					{#if new_chat_creating === true}
@@ -447,6 +718,7 @@
 					class="secondary-btn"
 					onclick={() => {
 						show_new_chat_popover = false;
+						resetChatCreation();
 					}}>Cancel</button
 				>
 			</div>
@@ -455,6 +727,73 @@
 					Error: {new_chat_creating}
 				</div>
 			{/if}
+		</div>
+	</div>
+{/if}
+
+<!-- Profile Modal -->
+{#if show_profile_modal}
+	<div class="popover-overlay">
+		<div class="popover-content">
+			<h3>Profile Settings</h3>
+
+			{#if current_user}
+				<div class="profile-info">
+					<div class="current-profile-picture">
+						<img
+							src={current_user.profile_picture_url || "/default-avatar.png"}
+							alt="Current Profile"
+						/>
+					</div>
+					<div class="user-details">
+						<h4>{current_user.username}</h4>
+						<p>{current_user.email}</p>
+						<span class="user-status status-{current_user.status}">{current_user.status}</span>
+					</div>
+				</div>
+
+				<div class="form-group">
+					<label for="profile-picture-input">Change Profile Picture:</label>
+					<input
+						type="file"
+						id="profile-picture-input"
+						accept="image/*"
+						onchange={handleFileSelect}
+						class="file-input"
+					/>
+					{#if profile_picture_file}
+						<div class="file-selected">
+							<span>Selected: {profile_picture_file.name}</span>
+							<button class="upload-btn" onclick={uploadProfilePicture} disabled={uploading_picture}>
+								{#if uploading_picture}
+									<div class="loading-spinner tiny"></div>
+									Uploading...
+								{:else}
+									Upload
+								{/if}
+							</button>
+						</div>
+					{/if}
+				</div>
+
+				{#if profile_update_message}
+					<div class="profile-message {profile_update_message.includes('Eroare') ? 'error' : 'success'}">
+						{profile_update_message}
+					</div>
+				{/if}
+			{/if}
+
+			<div class="popover-actions">
+				<button class="secondary-btn" onclick={() => goto('/')}>Go to Dashboard</button>
+				<button
+					class="secondary-btn"
+					onclick={() => {
+						show_profile_modal = false;
+						profile_update_message = '';
+						profile_picture_file = null;
+					}}>Close</button
+				>
+			</div>
 		</div>
 	</div>
 {/if}
@@ -550,7 +889,7 @@
 		transform: translateY(-2px);
 	}
 
-	/* Sidebar-ul cu iconițe (albastru) */
+	/* Sidebar-ul cu iconițe */
 	.sidebar-icons {
 		width: 60px;
 		background: linear-gradient(180deg, #5e4bff 0%, #4a68eb 100%);
@@ -628,7 +967,6 @@
 		color: white;
 	}
 
-	/* Header pentru secțiunea de conversații */
 	.conversations-header {
 		padding: 20px;
 		border-bottom: 1px solid rgba(255, 255, 255, 0.2);
@@ -674,6 +1012,11 @@
 		border: 2px solid rgba(255, 255, 255, 0.3);
 	}
 
+	.avatar-wrapper.small {
+		width: 30px;
+		height: 30px;
+	}
+
 	.avatar-wrapper img {
 		width: 100%;
 		height: 100%;
@@ -704,7 +1047,7 @@
 		text-overflow: ellipsis;
 	}
 
-	/* Welcome screen when no chat selected */
+	/* Welcome screen */
 	.welcome-chat {
 		flex: 1;
 		display: flex;
@@ -739,7 +1082,7 @@
 		margin: 0;
 	}
 
-	/* Zona principală de chat */
+	/* Chat area */
 	.chat-area {
 		flex: 1;
 		display: flex;
@@ -760,11 +1103,6 @@
 		align-items: center;
 	}
 
-	.current-conversation .avatar-wrapper {
-		width: 50px;
-		height: 50px;
-	}
-
 	.current-conversation h2 {
 		margin: 0 0 0 15px;
 		font-size: 20px;
@@ -781,7 +1119,6 @@
 		gap: 12px;
 	}
 
-	/* Message states */
 	.loading-messages,
 	.error-in-chat,
 	.empty-chat {
@@ -835,7 +1172,6 @@
 		border-bottom-left-radius: 6px;
 	}
 
-	/* Message info */
 	.message-info {
 		display: flex;
 		align-items: center;
@@ -876,11 +1212,6 @@
 
 	.read-receipt.delivered:before {
 		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.7)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
-	}
-
-	.read-receipt.seen:before {
-		background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='20 6 9 17 4 12'%3E%3C/polyline%3E%3C/svg%3E");
-		color: #ffffff;
 	}
 
 	/* Message input area */
@@ -982,25 +1313,75 @@
 		box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
 		min-width: 400px;
 		max-width: 90vw;
+		max-height: 90vh;
+		overflow-y: auto;
 		color: white;
 		border: 1px solid rgba(255, 255, 255, 0.2);
 	}
 
+	.popover-content.large {
+		min-width: 500px;
+	}
+
 	.popover-content h3 {
-		margin: 0 0 20px 0;
+		margin: 0 0 25px 0;
 		font-size: 24px;
 		font-weight: 600;
 		text-align: center;
 	}
 
-	.popover-content label {
-		display: block;
+	/* Chat type selector */
+	.chat-type-selector {
+		display: flex;
+		gap: 10px;
 		margin-bottom: 20px;
+	}
+
+	.type-btn {
+		flex: 1;
+		padding: 12px;
+		border: 2px solid rgba(255, 255, 255, 0.3);
+		border-radius: 12px;
+		background: transparent;
+		color: white;
+		cursor: pointer;
+		transition: all 0.3s ease;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		gap: 8px;
+		font-size: 14px;
+		font-weight: 500;
+	}
+
+	.type-btn:hover {
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	.type-btn.active {
+		background: rgba(255, 255, 255, 0.2);
+		border-color: rgba(255, 255, 255, 0.5);
+	}
+
+	.type-btn svg {
+		stroke: currentColor;
+		fill: none;
+		stroke-width: 2;
+	}
+
+	/* Form groups */
+	.form-group {
+		margin-bottom: 20px;
+	}
+
+	.form-group label {
+		display: block;
+		margin-bottom: 8px;
 		font-size: 16px;
 		font-weight: 500;
 	}
 
-	.popover-content input {
+	.form-group input {
 		width: 100%;
 		padding: 12px 16px;
 		border-radius: 10px;
@@ -1008,24 +1389,285 @@
 		background: rgba(255, 255, 255, 0.2);
 		color: white;
 		font-size: 16px;
-		margin-top: 8px;
 		outline: none;
 		transition: all 0.3s ease;
 	}
 
-	.popover-content input::placeholder {
+	.form-group input::placeholder {
 		color: rgba(255, 255, 255, 0.7);
 	}
 
-	.popover-content input:focus {
+	.form-group input:focus {
 		background: rgba(255, 255, 255, 0.3);
 		box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
 	}
 
+	/* Search container */
+	.search-container {
+		position: relative;
+	}
+
+	.search-loading {
+		position: absolute;
+		right: 12px;
+		top: 50%;
+		transform: translateY(-50%);
+	}
+
+	.search-error {
+		color: #ff6b6b;
+		font-size: 14px;
+		margin-top: 8px;
+	}
+
+	/* Search results */
+	.search-results {
+		max-height: 200px;
+		overflow-y: auto;
+		background: rgba(255, 255, 255, 0.1);
+		border-radius: 10px;
+		margin-top: 10px;
+	}
+
+	.user-result {
+		display: flex;
+		align-items: center;
+		padding: 12px;
+		cursor: pointer;
+		transition: all 0.3s ease;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+	}
+
+	.user-result:hover {
+		background: rgba(255, 255, 255, 0.1);
+	}
+
+	.user-result:last-child {
+		border-bottom: none;
+	}
+
+	.user-avatar {
+		width: 40px;
+		height: 40px;
+		border-radius: 50%;
+		overflow: hidden;
+		flex-shrink: 0;
+		border: 1px solid rgba(255, 255, 255, 0.3);
+	}
+
+	.user-info {
+		flex: 1;
+		margin-left: 12px;
+		display: flex;
+		flex-direction: column;
+		gap: 2px;
+	}
+
+	.username {
+		font-weight: 500;
+		font-size: 14px;
+	}
+
+	.user-status {
+		font-size: 12px;
+		padding: 2px 8px;
+		border-radius: 12px;
+		text-transform: capitalize;
+	}
+
+	.status-online {
+		background: rgba(76, 175, 80, 0.3);
+		color: #4caf50;
+	}
+
+	.status-offline {
+		background: rgba(158, 158, 158, 0.3);
+		color: #9e9e9e;
+	}
+
+	.status-away {
+		background: rgba(255, 193, 7, 0.3);
+		color: #ffc107;
+	}
+
+	.status-busy {
+		background: rgba(244, 67, 54, 0.3);
+		color: #f44336;
+	}
+
+	.add-user-btn {
+		width: 32px;
+		height: 32px;
+		border-radius: 50%;
+		border: none;
+		background: rgba(255, 255, 255, 0.2);
+		color: white;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: all 0.3s ease;
+	}
+
+	.add-user-btn:hover {
+		background: rgba(255, 255, 255, 0.3);
+		transform: scale(1.1);
+	}
+
+	.add-user-btn svg {
+		stroke: currentColor;
+		fill: none;
+		stroke-width: 2;
+	}
+
+	/* Selected users */
+	.selected-users {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 8px;
+		padding: 12px;
+		background: rgba(255, 255, 255, 0.1);
+		border-radius: 10px;
+		min-height: 50px;
+	}
+
+	.selected-user {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		background: rgba(255, 255, 255, 0.2);
+		padding: 6px 12px;
+		border-radius: 20px;
+		font-size: 14px;
+	}
+
+	.remove-user-btn {
+		width: 20px;
+		height: 20px;
+		border-radius: 50%;
+		border: none;
+		background: rgba(255, 255, 255, 0.3);
+		color: white;
+		cursor: pointer;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		transition: all 0.3s ease;
+	}
+
+	.remove-user-btn:hover {
+		background: rgba(255, 255, 255, 0.5);
+	}
+
+	.remove-user-btn svg {
+		stroke: currentColor;
+		fill: none;
+		stroke-width: 2;
+	}
+
+	/* Profile modal styles */
+	.profile-info {
+		display: flex;
+		align-items: center;
+		gap: 20px;
+		margin-bottom: 25px;
+		padding: 20px;
+		background: rgba(255, 255, 255, 0.1);
+		border-radius: 15px;
+	}
+
+	.current-profile-picture {
+		width: 80px;
+		height: 80px;
+		border-radius: 50%;
+		overflow: hidden;
+		border: 3px solid rgba(255, 255, 255, 0.3);
+	}
+
+	.current-profile-picture img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	.user-details h4 {
+		margin: 0 0 8px 0;
+		font-size: 20px;
+		font-weight: 600;
+	}
+
+	.user-details p {
+		margin: 0 0 8px 0;
+		opacity: 0.8;
+		font-size: 14px;
+	}
+
+	.file-input {
+		padding: 8px 0;
+		font-size: 14px;
+	}
+
+	.file-selected {
+		display: flex;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-top: 10px;
+		padding: 8px 12px;
+		background: rgba(255, 255, 255, 0.1);
+		border-radius: 8px;
+		font-size: 14px;
+	}
+
+	.upload-btn {
+		padding: 6px 12px;
+		border: none;
+		border-radius: 15px;
+		background: rgba(255, 255, 255, 0.2);
+		color: white;
+		cursor: pointer;
+		font-size: 12px;
+		transition: all 0.3s ease;
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+
+	.upload-btn:hover:not(:disabled) {
+		background: rgba(255, 255, 255, 0.3);
+	}
+
+	.upload-btn:disabled {
+		opacity: 0.5;
+		cursor: not-allowed;
+	}
+
+	.profile-message {
+		padding: 10px 15px;
+		border-radius: 8px;
+		margin-top: 15px;
+		font-size: 14px;
+		text-align: center;
+	}
+
+	.profile-message.error {
+		background: rgba(255, 107, 107, 0.2);
+		border: 1px solid rgba(255, 107, 107, 0.3);
+		color: #ff6b6b;
+	}
+
+	.profile-message.success {
+		background: rgba(76, 175, 80, 0.2);
+		border: 1px solid rgba(76, 175, 80, 0.3);
+		color: #4caf50;
+	}
+
+	/* Button styles */
 	.popover-actions {
 		display: flex;
 		gap: 12px;
 		justify-content: center;
+		margin-top: 25px;
 	}
 
 	.primary-btn,
@@ -1082,23 +1724,31 @@
 
 	/* Scrollbar styling */
 	.conversation-list::-webkit-scrollbar,
-	.messages-container::-webkit-scrollbar {
+	.messages-container::-webkit-scrollbar,
+	.search-results::-webkit-scrollbar,
+	.popover-content::-webkit-scrollbar {
 		width: 6px;
 	}
 
 	.conversation-list::-webkit-scrollbar-track,
-	.messages-container::-webkit-scrollbar-track {
+	.messages-container::-webkit-scrollbar-track,
+	.search-results::-webkit-scrollbar-track,
+	.popover-content::-webkit-scrollbar-track {
 		background: rgba(255, 255, 255, 0.1);
 	}
 
 	.conversation-list::-webkit-scrollbar-thumb,
-	.messages-container::-webkit-scrollbar-thumb {
+	.messages-container::-webkit-scrollbar-thumb,
+	.search-results::-webkit-scrollbar-thumb,
+	.popover-content::-webkit-scrollbar-thumb {
 		background: rgba(255, 255, 255, 0.3);
 		border-radius: 3px;
 	}
 
 	.conversation-list::-webkit-scrollbar-thumb:hover,
-	.messages-container::-webkit-scrollbar-thumb:hover {
+	.messages-container::-webkit-scrollbar-thumb:hover,
+	.search-results::-webkit-scrollbar-thumb:hover,
+	.popover-content::-webkit-scrollbar-thumb:hover {
 		background: rgba(255, 255, 255, 0.5);
 	}
 
@@ -1108,22 +1758,22 @@
 			width: 240px;
 		}
 
-		.welcome-content {
-			padding: 20px;
-		}
-
-		.welcome-logo {
-			width: 80px;
-			height: 80px;
-		}
-
-		.welcome-content h2 {
-			font-size: 24px;
-		}
-
 		.popover-content {
-			min-width: 320px;
-			padding: 20px;
+			min-width: 350px;
+			padding: 25px;
+		}
+
+		.popover-content.large {
+			min-width: 400px;
+		}
+
+		.chat-type-selector {
+			flex-direction: column;
+		}
+
+		.profile-info {
+			flex-direction: column;
+			text-align: center;
 		}
 	}
 
@@ -1179,18 +1829,33 @@
 			height: calc(100vh - 180px);
 		}
 
-		.welcome-content {
-			padding: 15px;
+		.popover-content {
+			min-width: 320px;
+			margin: 15px;
 		}
 
-		.popover-content {
-			min-width: 280px;
-			margin: 20px;
+		.popover-content.large {
+			min-width: 320px;
 		}
 
 		.popover-actions {
 			flex-direction: column;
 			gap: 8px;
+		}
+
+		.selected-users {
+			flex-direction: column;
+			align-items: stretch;
+		}
+
+		.selected-user {
+			justify-content: space-between;
+		}
+
+		.file-selected {
+			flex-direction: column;
+			align-items: stretch;
+			text-align: center;
 		}
 	}
 </style>
