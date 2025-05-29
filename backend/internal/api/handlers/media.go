@@ -4,14 +4,19 @@ import (
 	"crypto/md5"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/jpeg"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"OurChat/internal/db"
 	"OurChat/internal/models"
+
+	"github.com/disintegration/imaging"
 
 	"github.com/gorilla/mux"
 )
@@ -21,6 +26,12 @@ type MediaHandler struct {
 	DB        *db.DB
 	UploadDir string
 }
+
+const (
+	ProfilePictureSize    = 128             // 128x128 pixels
+	ProfilePictureQuality = 90              // JPEG quality
+	MaxProfilePictureSize = 5 * 1024 * 1024 // 5MB
+)
 
 // NewMediaHandler creates a new media handler
 func NewMediaHandler(db *db.DB) *MediaHandler {
@@ -44,10 +55,10 @@ func (h *MediaHandler) HandleUploadProfilePicture(w http.ResponseWriter, r *http
 		return
 	}
 
-	// Parse multipart form (5MB max)
-	err := r.ParseMultipartForm(5 << 20)
+	// Parse multipart form
+	err := r.ParseMultipartForm(MaxProfilePictureSize)
 	if err != nil {
-		http.Error(w, "Failed to parse form", http.StatusBadRequest)
+		http.Error(w, "Failed to parse form or file too large", http.StatusBadRequest)
 		return
 	}
 
@@ -64,27 +75,16 @@ func (h *MediaHandler) HandleUploadProfilePicture(w http.ResponseWriter, r *http
 		return
 	}
 
-	// Validate file size (5MB max)
-	if header.Size > 5*1024*1024 {
+	// Validate file size
+	if header.Size > MaxProfilePictureSize {
 		http.Error(w, "File too large. Maximum size is 5MB", http.StatusBadRequest)
 		return
 	}
 
-	// Generate unique filename
-	filename := generateUniqueFilename(header.Filename, userID)
-	filePath := filepath.Join(h.UploadDir, "profiles", filename)
-
-	// Save file
-	dst, err := os.Create(filePath)
+	// Process and save the image
+	filename, err := h.processAndSaveProfilePicture(file, header.Filename, userID)
 	if err != nil {
-		http.Error(w, "Failed to save file", http.StatusInternalServerError)
-		return
-	}
-	defer dst.Close()
-
-	_, err = io.Copy(dst, file)
-	if err != nil {
-		http.Error(w, "Failed to save file", http.StatusInternalServerError)
+		http.Error(w, fmt.Sprintf("Failed to process image: %v", err), http.StatusInternalServerError)
 		return
 	}
 
@@ -93,16 +93,17 @@ func (h *MediaHandler) HandleUploadProfilePicture(w http.ResponseWriter, r *http
 	err = h.DB.UpdateUserProfilePicture(userID, profileURL)
 	if err != nil {
 		// Clean up file if database update fails
-		os.Remove(filePath)
+		os.Remove(filepath.Join(h.UploadDir, "profiles", filename))
 		http.Error(w, "Failed to update profile", http.StatusInternalServerError)
 		return
 	}
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{
+	json.NewEncoder(w).Encode(map[string]interface{}{
 		"message": "Profile picture updated successfully",
 		"url":     profileURL,
+		"size":    "128x128",
 	})
 }
 
@@ -318,14 +319,67 @@ func isValidMediaType(mimeType string) bool {
 	}
 	return false
 }
+func (h *MediaHandler) processAndSaveProfilePicture(file io.Reader, originalFilename string, userID int) (string, error) {
+	// Decode the image
+	img, _, err := image.Decode(file)
+	if err != nil {
+		return "", fmt.Errorf("failed to decode image: %w", err)
+	}
 
+	// Get image dimensions
+	bounds := img.Bounds()
+	width := bounds.Dx()
+	height := bounds.Dy()
+
+	var processedImg image.Image
+
+	if width == height {
+		// Square image - just resize
+		processedImg = imaging.Resize(img, ProfilePictureSize, ProfilePictureSize, imaging.Lanczos)
+	} else {
+		// Rectangular image - crop to square first, then resize
+		cropSize := width
+		if height < width {
+			cropSize = height
+		}
+
+		// Calculate crop position (center crop)
+		x := (width - cropSize) / 2
+		y := (height - cropSize) / 2
+
+		// Crop to square
+		croppedImg := imaging.Crop(img, image.Rect(x, y, x+cropSize, y+cropSize))
+
+		// Resize to target size
+		processedImg = imaging.Resize(croppedImg, ProfilePictureSize, ProfilePictureSize, imaging.Lanczos)
+	}
+
+	// Generate unique filename
+	filename := generateUniqueFilename(originalFilename, userID) + ".jpg" // Always save as JPEG
+	filePath := filepath.Join(h.UploadDir, "profiles", filename)
+
+	// Create output file
+	outputFile, err := os.Create(filePath)
+	if err != nil {
+		return "", fmt.Errorf("failed to create output file: %w", err)
+	}
+	defer outputFile.Close()
+
+	// Save as JPEG with specified quality
+	err = jpeg.Encode(outputFile, processedImg, &jpeg.Options{Quality: ProfilePictureQuality})
+	if err != nil {
+		// Clean up file on error
+		os.Remove(filePath)
+		return "", fmt.Errorf("failed to encode JPEG: %w", err)
+	}
+
+	return filename, nil
+}
+
+// UPDATE your existing generateUniqueFilename function to remove extension:
 func generateUniqueFilename(originalFilename string, userID int) string {
-	// Get file extension
-	ext := filepath.Ext(originalFilename)
-
-	// Create hash from user ID, timestamp, and original filename
-	hash := md5.Sum([]byte(fmt.Sprintf("%d_%d_%s", userID, time.Now().UnixNano(), originalFilename)))
-
-	// Generate filename: hash + extension
-	return fmt.Sprintf("%x%s", hash, ext)
+	// Remove extension since we'll add .jpg
+	name := strings.TrimSuffix(originalFilename, filepath.Ext(originalFilename))
+	hash := md5.Sum([]byte(fmt.Sprintf("%d_%d_%s", userID, time.Now().UnixNano(), name)))
+	return fmt.Sprintf("%x", hash)
 }
