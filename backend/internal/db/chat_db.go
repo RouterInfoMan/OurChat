@@ -165,7 +165,7 @@ func (db *DB) GetDirectChatBetweenUsers(userID1, userID2 int) (int, error) {
 func (db *DB) GetChatMembers(chatID int) ([]models.ChatMember, error) {
 	query := `
     SELECT cm.id, cm.user_id, cm.chat_id, cm.role, cm.joined_at, cm.last_read_at,
-           u.username, u.status
+           u.username, u.status, u.profile_picture_url
     FROM chat_members cm
     JOIN users u ON cm.user_id = u.id
     WHERE cm.chat_id = ?
@@ -191,6 +191,7 @@ func (db *DB) GetChatMembers(chatID int) ([]models.ChatMember, error) {
 			&lastReadAt,
 			&member.Username,
 			&member.Status,
+			&member.ProfilePictureURL,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan chat member: %w", err)

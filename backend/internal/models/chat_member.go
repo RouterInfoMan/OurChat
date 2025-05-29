@@ -13,6 +13,7 @@ type ChatMember struct {
 	LastReadAt *time.Time `json:"last_read_at,omitempty"`
 
 	// Additional fields from the user table
-	Username string `json:"username"`
-	Status   string `json:"status"`
+	Username          string `json:"username"`
+	Status            string `json:"status"`
+	ProfilePictureURL string `json:"profile_picture_url,omitempty"`
 }
