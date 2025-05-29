@@ -418,52 +418,114 @@
 		}
 	}
 
-	async function loadEverything() {
-		loading = true;
-		chats = null;
-		error = null;
-		selected_chat = null;
-		show_new_chat_popover = false;
+    async function loadEverything() {
+        loading = true;
+        chats = null;
+        error = null;
+        selected_chat = null;
+        show_new_chat_popover = false;
 
-		try {
-			const response = await fetch('/api/chats', {
-				method: 'GET',
-				headers: {
-					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
-				}
-			});
-			if (!response.ok) {
-				throw new Error('Eroare la obținerea conversațiilor');
-			}
-			chats = await response.json();
-		} catch (err) {
-			error = err as Error;
-		} finally {
-			loading = false;
-		}
-	}
+        try {
+            const response = await fetch('/api/chats', {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
+                }
+            });
+            if (!response.ok) {
+                throw new Error('Eroare la obținerea conversațiilor');
+            }
+            const chatsData = await response.json();
 
-	async function loadChat() {
-		selected_chat_data = true;
-		loadChatMessages();
-		try {
-			const response = await fetch(`/api/chats/${selected_chat}`, {
-				method: 'GET',
-				headers: {
-					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
-				}
-			});
+            // Pentru fiecare chat direct, încearcă să obții poza celuilalt utilizator
+            for (const chat of chatsData) {
+                if (chat.type === 'direct') {
+                    try {
+                        const membersResponse = await fetch(`/api/chats/${chat.id}/members`, {
+                            method: 'GET',
+                            headers: {
+                                Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
+                            }
+                        });
 
-			if (!response.ok) {
-				throw new Error('Eroare la obținerea detaliilor conversației');
-			}
+                        if (membersResponse.ok) {
+                            const members = await membersResponse.json();
+                            const otherMember = members.find(member => member.user_id !== current_user?.id);
+                            if (otherMember) {
+                                chat.other_user_avatar = otherMember.profile_picture_url;
+                            }
+                        }
+                    } catch (error) {
+                        console.log('Could not load members for chat', chat.id);
+                    }
+                }
+            }
 
-			selected_chat_data = await response.json();
-		} catch (error) {
-			console.error('Error:', error);
-			selected_chat_data = false;
-		}
-	}
+            chats = chatsData;
+        } catch (err) {
+            error = err as Error;
+        } finally {
+            loading = false;
+        }
+    }
+
+    async function loadChat() {
+        selected_chat_data = true;
+        loadChatMessages();
+
+        try {
+            // Încarcă detaliile chat-ului
+            const chatResponse = await fetch(`/api/chats/${selected_chat}`, {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
+                }
+            });
+
+            if (!chatResponse.ok) {
+                throw new Error('Eroare la obținerea detaliilor conversației');
+            }
+
+            const chatData = await chatResponse.json();
+            console.log('Chat data loaded:', chatData); // DEBUG
+
+            // Pentru chat-uri direct, încearcă să obții informații despre celălalt utilizator
+            if (chatData.type === 'direct') {
+                try {
+                    const membersResponse = await fetch(`/api/chats/${selected_chat}/members`, {
+                        method: 'GET',
+                        headers: {
+                            Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
+                        }
+                    });
+
+                    if (membersResponse.ok) {
+                        const members = await membersResponse.json();
+                        console.log('Chat members:', members); // DEBUG
+
+                        // Găsește celălalt membru (nu pe utilizatorul curent)
+                        const otherMember = members.find(member => member.user_id !== current_user?.id);
+                        if (otherMember) {
+                            chatData.other_user_avatar = otherMember.profile_picture_url;
+                            // Folosește username-ul din members în loc de name din chat
+                            chatData.display_name = otherMember.username;
+                        }
+                    }
+                } catch (error) {
+                    console.log('Could not load chat members:', error);
+                }
+            } else {
+                // Pentru group chats, folosește numele din chat
+                chatData.display_name = chatData.name;
+            }
+
+            console.log('Final chat data:', chatData); // DEBUG
+            selected_chat_data = chatData;
+        } catch (error) {
+            console.error('Error:', error);
+            selected_chat_data = false;
+        }
+    }
 
 	async function loadChatMessages() {
 		try {
@@ -561,23 +623,31 @@
 			</div>
 
 			<div class="conversation-list">
-				{#each chats as chat}
-					<div
-						class="conversation-item {chat.id === selected_chat ? 'active' : ''}"
-						onclick={() => {
-							selected_chat = chat.id;
-							loadChat();
-						}}
-					>
-						<div class="avatar-wrapper">
-							<img src="/default-avatar.png" alt="Avatar" />
-						</div>
-						<div class="conv-details">
-							<h3>{chat.name}</h3>
-							<p>Click to open chat</p>
-						</div>
-					</div>
-				{/each}
+                {#each chats as chat}
+                    <div
+                        class="conversation-item {chat.id === selected_chat ? 'active' : ''}"
+                        onclick={() => {
+                            selected_chat = chat.id;
+                            loadChat();
+                        }}
+                    >
+                        <div class="avatar-wrapper">
+                            {#if chat.type === 'direct' && chat.other_user_avatar}
+                                {#await getProfileImageUrl(chat.other_user_avatar, `chat_list_${chat.id}`)}
+                                    <img src="/default-avatar.png" alt="Loading..." class="loading" />
+                                {:then imageUrl}
+                                    <img src={imageUrl} alt={chat.name} />
+                                {/await}
+                            {:else}
+                                <img src="/default-avatar.png" alt="Avatar" />
+                            {/if}
+                        </div>
+                        <div class="conv-details">
+                            <h3>{chat.name}</h3>
+                            <p>Click to open chat</p>
+                        </div>
+                    </div>
+                {/each}
 			</div>
 		</div>
 
@@ -585,14 +655,26 @@
 		{#if selected_chat !== null}
 			{#if typeof selected_chat_data === 'object'}
 				<div class="chat-area">
-					<div class="chat-header">
-						<div class="current-conversation">
-							<div class="avatar-wrapper">
-								<img src="/default-avatar.png" alt="Avatar" />
-							</div>
-							<h2>{selected_chat_data.name}</h2>
-						</div>
-					</div>
+                    <div class="chat-header">
+                        <div class="current-conversation">
+                            <div class="avatar-wrapper">
+                                {#if typeof selected_chat_data === 'object' && selected_chat_data.type === 'direct' && selected_chat_data.other_user_avatar}
+                                    {#await getProfileImageUrl(selected_chat_data.other_user_avatar, `chat_header_${selected_chat}`)}
+                                        <img src="/default-avatar.png" alt="Loading..." class="loading" />
+                                    {:then imageUrl}
+                                        <img src={imageUrl} alt="Chat Avatar" />
+                                    {/await}
+                                {:else}
+                                    <img src="/default-avatar.png" alt="Avatar" />
+                                {/if}
+                            </div>
+                            {#if typeof selected_chat_data === 'object'}
+                                <h2>{selected_chat_data.display_name || selected_chat_data.name || 'Chat'}</h2>
+                            {:else}
+                                <h2>Loading...</h2>
+                            {/if}
+                        </div>
+                    </div>
 
 					<div class="messages-container">
 						{#if typeof chat_messages === 'string'}
@@ -1554,14 +1636,28 @@
 		border-bottom: none;
 	}
 
-	.user-avatar {
-		width: 40px;
-		height: 40px;
-		border-radius: 50%;
-		overflow: hidden;
-		flex-shrink: 0;
-		border: 1px solid rgba(255, 255, 255, 0.3);
-	}
+    .user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        overflow: hidden;
+        flex-shrink: 0;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    .user-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover; /* Asigură-te că imaginea se scalează corect */
+        object-position: center; /* Centrează imaginea */
+    }
+
+    /* Pentru avatarele mici din selected users */
+    .user-avatar.small {
+        width: 32px; /* Mărește de la 30px la 32px */
+        height: 32px;
+        border-width: 1px;
+    }
 
 	.user-info {
 		flex: 1;
