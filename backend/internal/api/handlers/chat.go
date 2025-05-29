@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -79,6 +80,24 @@ func (h *ChatHandler) HandleCreateChat(w http.ResponseWriter, r *http.Request) {
 	if req.Type == "direct" && (len(req.Users) != 1) {
 		http.Error(w, "Direct chat requires exactly one other user", http.StatusBadRequest)
 		return
+	}
+
+	if len(req.Users) > 0 {
+		// Validate each user exists
+		for _, otherUserID := range req.Users {
+			// Check if user exists
+			_, err := h.DB.GetUserByID(userID)
+			if err != nil {
+				http.Error(w, fmt.Sprintf("User with ID %d does not exist", userID), http.StatusBadRequest)
+				return
+			}
+
+			// For direct chats, make sure they're not trying to chat with themselves
+			if req.Type == "direct" && userID == otherUserID {
+				http.Error(w, "Cannot create direct chat with yourself", http.StatusBadRequest)
+				return
+			}
+		}
 	}
 
 	// For direct chats, check if a chat already exists
