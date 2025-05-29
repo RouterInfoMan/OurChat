@@ -32,6 +32,10 @@ COPY --from=builder /app/backend/ourchat .
 # Copy database migrations directory
 COPY --from=builder /app/backend/internal/db/migrations ./internal/db/migrations
 
+# Create directories for data persistence with proper permissions
+RUN mkdir -p /app/data /app/uploads/profiles /app/uploads/media && \
+    chmod 755 /app/data /app/uploads /app/uploads/profiles /app/uploads/media
+
 # Expose the application port
 EXPOSE 8080
 
