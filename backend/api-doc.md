@@ -569,7 +569,8 @@ Get all members of a specific chat.
     "joined_at": "2025-05-15T10:20:30Z",
     "last_read_at": "2025-05-15T12:30:45Z",
     "username": "testuser1",
-    "status": "online"
+    "status": "online",
+    "profile_picture_url": null
   },
   {
     "id": 2,
@@ -579,7 +580,8 @@ Get all members of a specific chat.
     "joined_at": "2025-05-15T10:20:30Z",
     "last_read_at": "2025-05-15T11:45:20Z",
     "username": "testuser2",
-    "status": "offline"
+    "status": "offline",
+    "profile_picture_url": null
   }
 ]
 ```
