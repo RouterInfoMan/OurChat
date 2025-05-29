@@ -163,7 +163,7 @@ func (db *DB) GetUsersByIDs(userIDs []int) (map[int]models.UserBasic, error) {
 	placeholders = placeholders[:len(placeholders)-1] // Remove trailing comma
 
 	query := fmt.Sprintf(`
-    SELECT id, username, status
+    SELECT id, username, status, profile_picture_url
     FROM users
     WHERE id IN (%s)`, placeholders)
 
@@ -182,7 +182,7 @@ func (db *DB) GetUsersByIDs(userIDs []int) (map[int]models.UserBasic, error) {
 	users := make(map[int]models.UserBasic)
 	for rows.Next() {
 		var user models.UserBasic
-		if err := rows.Scan(&user.ID, &user.Username, &user.Status); err != nil {
+		if err := rows.Scan(&user.ID, &user.Username, &user.Status, &user.ProfilePictureURL); err != nil {
 			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
 		users[user.ID] = user
@@ -206,7 +206,7 @@ func (db *DB) SearchUsersByName(searchTerm string, limit int) ([]models.UserBasi
 	searchPattern := "%" + searchTerm + "%"
 
 	query := `
-    SELECT id, username, status
+    SELECT id, username, status, profile_picture_url
     FROM users
     WHERE username LIKE ?
     ORDER BY
@@ -233,7 +233,7 @@ func (db *DB) SearchUsersByName(searchTerm string, limit int) ([]models.UserBasi
 	users := make([]models.UserBasic, 0)
 	for rows.Next() {
 		var user models.UserBasic
-		if err := rows.Scan(&user.ID, &user.Username, &user.Status); err != nil {
+		if err := rows.Scan(&user.ID, &user.Username, &user.Status, &user.ProfilePictureURL); err != nil {
 			return nil, fmt.Errorf("failed to scan user: %w", err)
 		}
 		users = append(users, user)
