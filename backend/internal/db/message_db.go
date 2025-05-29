@@ -9,13 +9,12 @@ import (
 	"OurChat/internal/models"
 )
 
-// CreateMessage creates a new message in a chat
-func (db *DB) CreateMessage(senderID, chatID int, content string) (int64, error) {
+func (db *DB) CreateMessage(senderID, chatID int, content, messageType string, mediaFileID *int) (int64, error) {
 	query := `
-	INSERT INTO messages (sender_id, chat_id, content, created_at)
-	VALUES (?, ?, ?, ?)`
+	INSERT INTO messages (sender_id, chat_id, content, message_type, media_file_id, created_at)
+	VALUES (?, ?, ?, ?, ?, ?)`
 
-	result, err := db.Exec(query, senderID, chatID, content, time.Now())
+	result, err := db.Exec(query, senderID, chatID, content, messageType, mediaFileID, time.Now())
 	if err != nil {
 		return 0, fmt.Errorf("failed to create message: %w", err)
 	}
@@ -37,36 +36,65 @@ func (db *DB) CreateMessage(senderID, chatID int, content string) (int64, error)
 }
 
 // GetMessageByID retrieves a specific message by its ID
-func (db *DB) GetMessageByID(messageID int) (*models.Message, error) {
+func (db *DB) GetMessageByIDWithMedia(messageID int) (*models.Message, error) {
 	message := &models.Message{}
 	query := `
-	SELECT id, sender_id, chat_id, content, created_at, is_read
-	FROM messages
-	WHERE id = ?`
+	SELECT m.id, m.sender_id, m.chat_id, m.content, m.message_type, m.media_file_id, m.created_at, m.is_read,
+	       mf.id, mf.filename, mf.original_filename, mf.file_size, mf.mime_type, mf.uploaded_at
+	FROM messages m
+	LEFT JOIN media_files mf ON m.media_file_id = mf.id
+	WHERE m.id = ?`
+
+	var mediaFileID, mediaID sql.NullInt64
+	var mediaFilename, mediaOriginalFilename, mediaMimeType sql.NullString
+	var mediaFileSize sql.NullInt64
+	var mediaUploadedAt sql.NullTime
 
 	err := db.QueryRow(query, messageID).Scan(
-		&message.ID, &message.SenderID, &message.ChatID,
-		&message.Content, &message.CreatedAt, &message.IsRead,
+		&message.ID, &message.SenderID, &message.ChatID, &message.Content,
+		&message.MessageType, &mediaFileID, &message.CreatedAt, &message.IsRead,
+		&mediaID, &mediaFilename, &mediaOriginalFilename, &mediaFileSize,
+		&mediaMimeType, &mediaUploadedAt,
 	)
 
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, fmt.Errorf("message not found: %w", err)
+			return nil, fmt.Errorf("message not found")
 		}
 		return nil, fmt.Errorf("failed to get message: %w", err)
 	}
 
-	log.Println("Message retrieved successfully")
+	// Set media file ID if it exists
+	if mediaFileID.Valid {
+		id := int(mediaFileID.Int64)
+		message.MediaFileID = &id
+	}
+
+	// Populate media file information if it exists
+	if mediaID.Valid {
+		message.MediaFile = &models.MediaFile{
+			ID:               int(mediaID.Int64),
+			Filename:         mediaFilename.String,
+			OriginalFilename: mediaOriginalFilename.String,
+			FileSize:         mediaFileSize.Int64,
+			MimeType:         mediaMimeType.String,
+			UploadedAt:       mediaUploadedAt.Time,
+			URL:              fmt.Sprintf("/api/media/files/%s", mediaFilename.String),
+		}
+	}
+
 	return message, nil
 }
 
 // GetMessagesByChatID retrieves messages from a chat with pagination
-func (db *DB) GetMessagesByChatID(chatID int, limit, offset int) ([]models.Message, error) {
+func (db *DB) GetMessagesByChatIDWithMedia(chatID int, limit, offset int) ([]models.Message, error) {
 	query := `
-	SELECT id, sender_id, chat_id, content, created_at, is_read
-	FROM messages
-	WHERE chat_id = ?
-	ORDER BY created_at DESC
+	SELECT m.id, m.sender_id, m.chat_id, m.content, m.message_type, m.media_file_id, m.created_at, m.is_read,
+	       mf.id, mf.filename, mf.original_filename, mf.file_size, mf.mime_type, mf.uploaded_at
+	FROM messages m
+	LEFT JOIN media_files mf ON m.media_file_id = mf.id
+	WHERE m.chat_id = ?
+	ORDER BY m.created_at DESC
 	LIMIT ? OFFSET ?`
 
 	rows, err := db.Query(query, chatID, limit, offset)
@@ -76,17 +104,45 @@ func (db *DB) GetMessagesByChatID(chatID int, limit, offset int) ([]models.Messa
 	defer rows.Close()
 
 	var messages []models.Message
-	messages = make([]models.Message, 0)
 	for rows.Next() {
 		var message models.Message
-		if err := rows.Scan(&message.ID, &message.SenderID, &message.ChatID, &message.Content,
-			&message.CreatedAt, &message.IsRead); err != nil {
+		var mediaFileID, mediaID sql.NullInt64
+		var mediaFilename, mediaOriginalFilename, mediaMimeType sql.NullString
+		var mediaFileSize sql.NullInt64
+		var mediaUploadedAt sql.NullTime
+
+		err := rows.Scan(
+			&message.ID, &message.SenderID, &message.ChatID, &message.Content,
+			&message.MessageType, &mediaFileID, &message.CreatedAt, &message.IsRead,
+			&mediaID, &mediaFilename, &mediaOriginalFilename, &mediaFileSize,
+			&mediaMimeType, &mediaUploadedAt,
+		)
+		if err != nil {
 			return nil, fmt.Errorf("failed to scan message: %w", err)
 		}
+
+		// Set media file ID if it exists
+		if mediaFileID.Valid {
+			id := int(mediaFileID.Int64)
+			message.MediaFileID = &id
+		}
+
+		// Populate media file information if it exists
+		if mediaID.Valid {
+			message.MediaFile = &models.MediaFile{
+				ID:               int(mediaID.Int64),
+				Filename:         mediaFilename.String,
+				OriginalFilename: mediaOriginalFilename.String,
+				FileSize:         mediaFileSize.Int64,
+				MimeType:         mediaMimeType.String,
+				UploadedAt:       mediaUploadedAt.Time,
+				URL:              fmt.Sprintf("/api/media/files/%s", mediaFilename.String),
+			}
+		}
+
 		messages = append(messages, message)
 	}
 
-	log.Println("Messages retrieved successfully")
 	return messages, nil
 }
 

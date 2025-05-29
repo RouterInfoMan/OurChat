@@ -17,6 +17,7 @@ type Server struct {
 	UserHandler    *handlers.UserHandler
 	ChatHandler    *handlers.ChatHandler
 	MessageHandler *handlers.MessageHandler
+	MediaHandler   *handlers.MediaHandler
 	AuthMiddleware *middleware.AuthMiddleware
 }
 
@@ -36,6 +37,7 @@ func NewServer() *Server {
 	userHandler := handlers.NewUserHandler(database)
 	chatHandler := handlers.NewChatHandler(database)
 	messageHandler := handlers.NewMessageHandler(database)
+	mediaHandler := handlers.NewMediaHandler(database)
 
 	// Create middleware
 	authMiddleware := middleware.NewAuthMiddleware(database)
@@ -47,6 +49,7 @@ func NewServer() *Server {
 		UserHandler:    userHandler,
 		ChatHandler:    chatHandler,
 		MessageHandler: messageHandler,
+		MediaHandler:   mediaHandler,
 		AuthMiddleware: authMiddleware,
 	}
 }
@@ -70,6 +73,11 @@ func (s *Server) SetupRoutes() {
 	protected.HandleFunc("/logout", s.AuthHandler.HandleLogout).Methods("POST")
 	protected.HandleFunc("/profile", s.UserHandler.HandleGetProfile).Methods("GET")
 	protected.HandleFunc("/profile", s.UserHandler.HandleUpdateProfile).Methods("PUT")
+	protected.HandleFunc("/profile/picture", s.MediaHandler.HandleUploadProfilePicture).Methods("POST")
+
+	// Media routes
+	protected.HandleFunc("/media/upload", s.MediaHandler.HandleUploadMedia).Methods("POST")
+	protected.HandleFunc("/media/{type}/{filename}", s.MediaHandler.HandleServeMedia).Methods("GET")
 
 	// Chat routes
 	protected.HandleFunc("/chats", s.ChatHandler.HandleGetChats).Methods("GET")
@@ -82,6 +90,7 @@ func (s *Server) SetupRoutes() {
 	protected.HandleFunc("/chats/{chatID}/messages", s.MessageHandler.HandleSendMessage).Methods("POST")
 	protected.HandleFunc("/chats/{chatID}/messages/read", s.MessageHandler.HandleMarkMessagesAsRead).Methods("POST")
 	protected.HandleFunc("/chats/{chatID}/messages/search", s.MessageHandler.HandleSearchMessages).Methods("GET")
+	protected.HandleFunc("/chats/{chatID}/messages/media", s.MessageHandler.HandleSendMediaMessage).Methods("POST")
 
 	// Helper routes
 	protected.HandleFunc("/users/search", s.UserHandler.HandleSearchUsers).Methods("GET")

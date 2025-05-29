@@ -55,14 +55,15 @@ func (db *DB) GetUserForAuth(username string) (*models.User, error) {
 // GetUserByID retrieves a user by ID (useful for JWT middleware)
 func (db *DB) GetUserByID(userID int) (*models.User, error) {
 	user := &models.User{}
-	query := `SELECT id, username, email, password, jwt_key, created_at, last_login, status
+	query := `SELECT id, username, email, password, jwt_key, profile_picture_url, created_at, last_login, status
 	          FROM users WHERE id = ?`
 
 	var lastLogin sql.NullTime
+	var profilePictureURL sql.NullString
 
 	err := db.QueryRow(query, userID).Scan(
 		&user.ID, &user.Username, &user.Email, &user.Password,
-		&user.JWTKey, &user.CreatedAt, &lastLogin, &user.Status,
+		&user.JWTKey, &profilePictureURL, &user.CreatedAt, &lastLogin, &user.Status,
 	)
 
 	if err != nil {
@@ -74,6 +75,10 @@ func (db *DB) GetUserByID(userID int) (*models.User, error) {
 
 	if lastLogin.Valid {
 		user.LastLogin = &lastLogin.Time
+	}
+
+	if profilePictureURL.Valid {
+		user.ProfilePictureURL = &profilePictureURL.String
 	}
 
 	return user, nil
