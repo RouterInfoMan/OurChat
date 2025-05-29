@@ -50,10 +50,88 @@
 	let uploading_picture = $state(false);
 	let profile_update_message = $state('');
 
+	// Image loading with authorization
+    let profileImageCache = {};
+    let loadingImages = {};
+
 	let messageInput: HTMLTextAreaElement | null;
 	let currentMessageText = $state('');
 	let isSending = $state(false);
 
+    // Funcție pentru a încărca imaginea cu autorizare
+    async function loadProfileImageWithAuth(imageUrl: string): Promise<string> {
+        console.log('loadProfileImageWithAuth called with:', imageUrl); // DEBUG
+
+        if (!imageUrl || !imageUrl.startsWith('/api/')) {
+            console.log('Not an API URL, returning as-is'); // DEBUG
+            return imageUrl || '/default-avatar.png';
+        }
+
+        // Verifică cache-ul
+        if (profileImageCache[imageUrl]) {
+            return profileImageCache[imageUrl];
+        }
+
+        try {
+            console.log('Loading image with auth:', imageUrl); // DEBUG
+
+            const response = await fetch(imageUrl, {
+                headers: {
+                    'Authorization': `Bearer ${localStorage.getItem('jwt_token')}`
+                }
+            });
+
+            console.log('Image response status:', response.status); // DEBUG
+
+            if (response.ok) {
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                profileImageCache[imageUrl] = blobUrl;
+                console.log('Image loaded successfully, blob URL:', blobUrl); // DEBUG
+                return blobUrl;
+            } else {
+                console.error('Failed to load image:', response.status, response.statusText);
+            }
+        } catch (error) {
+            console.error('Error loading profile image:', error);
+        }
+
+        profileImageCache[imageUrl] = '/default-avatar.png';
+        return '/default-avatar.png';
+    }
+
+	// Funcție helper pentru componente
+    // Funcție helper pentru componente
+    async function getProfileImageUrl(profileUrl: string | null, uniqueId: string): Promise<string> {
+        console.log('getProfileImageUrl called with:', profileUrl, uniqueId);
+
+        if (!profileUrl) {
+            console.log('No profile URL, returning default');
+            return '/default-avatar.png';
+        }
+
+        const cacheKey = `${uniqueId}_${profileUrl}_${imageRefreshCounter}`; // Include counter
+        console.log('Cache key:', cacheKey);
+
+        if (profileImageCache[cacheKey]) {
+            console.log('Found in cache:', profileImageCache[cacheKey]); // DEBUG
+            return profileImageCache[cacheKey];
+        }
+
+        if (loadingImages[cacheKey]) {
+            console.log('Already loading, returning default'); // DEBUG
+            return '/default-avatar.png';
+        }
+
+        console.log('Starting to load image...'); // DEBUG
+        loadingImages[cacheKey] = true;
+        const imageUrl = await loadProfileImageWithAuth(profileUrl);
+        loadingImages[cacheKey] = false;
+        profileImageCache[cacheKey] = imageUrl;
+
+        console.log('Final image URL:', imageUrl); // DEBUG
+        return imageUrl;
+    }
 	onMount(async () => {
 		messageInput = document.querySelector('.message-input') as HTMLTextAreaElement | null;
 
@@ -81,6 +159,8 @@
 
 			if (response.ok) {
 				current_user = await response.json();
+				console.log('Current user loaded:', current_user);
+                console.log('Profile picture URL:', current_user.profile_picture_url);
 			}
 		} catch (error) {
 			console.error('Error loading user profile:', error);
@@ -201,50 +281,61 @@
 		search_error = '';
 		new_chat_creating = false;
 	}
+    let imageRefreshCounter = $state(0);
 
-	// Upload profile picture
-	async function uploadProfilePicture() {
-		if (!profile_picture_file) return;
+    // Upload profile picture
+    async function uploadProfilePicture() {
+        if (!profile_picture_file) return;
 
-		try {
-			uploading_picture = true;
-			profile_update_message = '';
+        try {
+            uploading_picture = true;
+            profile_update_message = '';
 
-			const formData = new FormData();
-			formData.append('profile_picture', profile_picture_file);
+            const formData = new FormData();
+            formData.append('profile_picture', profile_picture_file);
 
-			const response = await fetch('/api/profile/picture', {
-				method: 'POST',
-				headers: {
-					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
-				},
-				body: formData
-			});
+            const response = await fetch('/api/profile/picture', {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
+                },
+                body: formData
+            });
 
-			if (!response.ok) {
-				const errorData = await response.json();
-				throw new Error(errorData.message || 'Eroare la încărcarea pozei');
-			}
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.message || 'Eroare la încărcarea pozei');
+            }
 
-			const data = await response.json();
-			profile_update_message = 'Poza de profil a fost actualizată!';
+            const data = await response.json();
+            profile_update_message = 'Poza de profil a fost actualizată!';
 
-			// Reload current user to get updated profile picture
-			await loadCurrentUser();
+            Object.keys(profileImageCache).forEach(key => {
+                if (profileImageCache[key] && profileImageCache[key].startsWith('blob:')) {
+                    URL.revokeObjectURL(profileImageCache[key]);
+                }
+                delete profileImageCache[key];
+            });
 
-			// Reset file input
-			profile_picture_file = null;
-			const fileInput = document.getElementById('profile-picture-input') as HTMLInputElement;
-			if (fileInput) fileInput.value = '';
+            Object.keys(loadingImages).forEach(key => {
+                delete loadingImages[key];
+            });
+            // Reload current user
+            await loadCurrentUser();
 
-		} catch (error: any) {
-			console.error('Error uploading profile picture:', error);
-			profile_update_message = error.message || 'Eroare la încărcarea pozei';
-		} finally {
-			uploading_picture = false;
-		}
-	}
+            // Reset file input
+            profile_picture_file = null;
+            const fileInput = document.getElementById('profile-picture-input') as HTMLInputElement;
+            if (fileInput) fileInput.value = '';
+            imageRefreshCounter++;
 
+        } catch (error: any) {
+            console.error('Error uploading profile picture:', error);
+            profile_update_message = error.message || 'Eroare la încărcarea pozei';
+        } finally {
+            uploading_picture = false;
+        }
+    }
 	// Handle file selection
 	function handleFileSelect(event: Event) {
 		const target = event.target as HTMLInputElement;
@@ -268,7 +359,7 @@
 		}
 	}
 
-	// Rest of the existing functions...
+	// Send message function
 	async function sendMessage(): Promise<void> {
 		const text = currentMessageText.trim();
 		if (!text || isSending) return;
@@ -278,7 +369,7 @@
 
 			const tempMessage = {
 				id: Date.now(),
-				sender_id: -1,
+				sender_id: current_user?.id || -1,
 				chat_id: selected_chat,
 				content: text,
 				created_at: new Date().toISOString(),
@@ -335,16 +426,16 @@
 		show_new_chat_popover = false;
 
 		try {
-			let req = await fetch('/api/chats', {
+			const response = await fetch('/api/chats', {
 				method: 'GET',
 				headers: {
 					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
 				}
 			});
-			if (!req.ok) {
+			if (!response.ok) {
 				throw new Error('Eroare la obținerea conversațiilor');
 			}
-			chats = await req.json();
+			chats = await response.json();
 		} catch (err) {
 			error = err as Error;
 		} finally {
@@ -440,10 +531,11 @@
 				}}
 				title="Profile Settings"
 			>
-				<img
-					src={current_user?.profile_picture_url || "/default-avatar.png"}
-					alt="Profil"
-				/>
+				{#await getProfileImageUrl(current_user?.profile_picture_url, `profile_${current_user?.id}`)}
+					<img src="/default-avatar.png" alt="Loading..." class="loading" />
+				{:then imageUrl}
+					<img src={imageUrl} alt="Profil" />
+				{/await}
 			</div>
 		</div>
 	</div>
@@ -663,7 +755,11 @@
 						{#each search_results as user}
 							<div class="user-result" onclick={() => addUserToSelection(user)}>
 								<div class="user-avatar">
-									<img src={user.profile_picture_url || "/default-avatar.png"} alt={user.username} />
+									{#await getProfileImageUrl(user.profile_picture_url, `search_${user.id}`)}
+										<img src="/default-avatar.png" alt="Loading..." class="loading" />
+									{:then imageUrl}
+										<img src={imageUrl} alt={user.username} />
+									{/await}
 								</div>
 								<div class="user-info">
 									<span class="username">{user.username}</span>
@@ -690,7 +786,11 @@
 						{#each selected_users as user}
 							<div class="selected-user">
 								<div class="user-avatar small">
-									<img src={user.profile_picture_url || "/default-avatar.png"} alt={user.username} />
+									{#await getProfileImageUrl(user.profile_picture_url, `selected_${user.id}`)}
+										<img src="/default-avatar.png" alt="Loading..." class="loading" />
+									{:then imageUrl}
+										<img src={imageUrl} alt={user.username} />
+									{/await}
 								</div>
 								<span class="username">{user.username}</span>
 								<button class="remove-user-btn" onclick={() => removeUserFromSelection(user.id)}>
@@ -740,10 +840,11 @@
 			{#if current_user}
 				<div class="profile-info">
 					<div class="current-profile-picture">
-						<img
-							src={current_user.profile_picture_url || "/default-avatar.png"}
-							alt="Current Profile"
-						/>
+						{#await getProfileImageUrl(current_user.profile_picture_url, `modal_${current_user.id}`)}
+							<img src="/default-avatar.png" alt="Loading..." class="loading" />
+						{:then imageUrl}
+							<img src={imageUrl} alt="Current Profile" />
+						{/await}
 					</div>
 					<div class="user-details">
 						<h4>{current_user.username}</h4>
@@ -954,6 +1055,13 @@
 		width: 100%;
 		height: 100%;
 		object-fit: cover;
+	}
+
+	.profile-img img.loading,
+	.user-avatar img.loading,
+	.current-profile-picture img.loading {
+		opacity: 0.5;
+		filter: blur(1px);
 	}
 
 	/* Sidebar-ul cu conversații */
