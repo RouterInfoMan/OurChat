@@ -208,8 +208,9 @@ func (h *MediaHandler) HandleServeMedia(w http.ResponseWriter, r *http.Request) 
 	var err error
 
 	switch mediaType {
+	// Profile pictures are publicly accessible
 	case "profiles":
-		authorized, filePath, err = h.checkProfilePictureAccess(userID, filename)
+		authorized, filePath, err = true, filepath.Join(h.UploadDir, "profiles", filename), nil
 	case "files":
 		authorized, filePath, err = h.checkMediaFileAccess(userID, filename)
 	default:
@@ -235,30 +236,6 @@ func (h *MediaHandler) HandleServeMedia(w http.ResponseWriter, r *http.Request) 
 
 	// Serve the file
 	http.ServeFile(w, r, filePath)
-}
-
-// Helper functions
-func (h *MediaHandler) checkProfilePictureAccess(userID int, filename string) (bool, string, error) {
-	filePath := filepath.Join(h.UploadDir, "profiles", filename)
-
-	// Get the owner of this profile picture
-	ownerID, err := h.DB.GetProfilePictureOwner(filename)
-	if err != nil {
-		return false, "", err
-	}
-
-	// User can access their own profile picture
-	if ownerID == userID {
-		return true, filePath, nil
-	}
-
-	// User can access profile pictures of people they share chats with
-	hasSharedChat, err := h.DB.UsersShareChat(userID, ownerID)
-	if err != nil {
-		return false, "", err
-	}
-
-	return hasSharedChat, filePath, nil
 }
 
 func (h *MediaHandler) checkMediaFileAccess(userID int, filename string) (bool, string, error) {
