@@ -192,7 +192,8 @@ func (db *DB) GetUsersByIDs(userIDs []int) (map[int]models.UserBasic, error) {
 }
 
 // SearchUsersByName searches for users by partial username match
-func (db *DB) SearchUsersByName(searchTerm string, limit int) ([]models.UserBasic, error) {
+// SearchUsersByName searches for users by partial username match, excluding a specific user
+func (db *DB) SearchUsersByName(searchTerm string, limit int, excludeUserID int) ([]models.UserBasic, error) {
 	if searchTerm == "" {
 		return make([]models.UserBasic, 0), nil
 	}
@@ -208,7 +209,7 @@ func (db *DB) SearchUsersByName(searchTerm string, limit int) ([]models.UserBasi
 	query := `
     SELECT id, username, status, profile_picture_url
     FROM users
-    WHERE username LIKE ?
+    WHERE username LIKE ? AND id != ?
     ORDER BY
         CASE
             WHEN username = ? THEN 1
@@ -220,11 +221,12 @@ func (db *DB) SearchUsersByName(searchTerm string, limit int) ([]models.UserBasi
 
 	// Parameters for the query:
 	// 1. searchPattern for the WHERE clause
-	// 2. searchTerm for exact match priority
-	// 3. searchTerm + "%" for starts-with match priority
+	// 2. excludeUserID to exclude current user
+	// 3. searchTerm for exact match priority
+	// 4. searchTerm + "%" for starts-with match priority
 	startsWithPattern := searchTerm + "%"
 
-	rows, err := db.Query(query, searchPattern, searchTerm, startsWithPattern, limit)
+	rows, err := db.Query(query, searchPattern, excludeUserID, searchTerm, startsWithPattern, limit)
 	if err != nil {
 		return nil, fmt.Errorf("failed to search users: %w", err)
 	}
@@ -243,6 +245,6 @@ func (db *DB) SearchUsersByName(searchTerm string, limit int) ([]models.UserBasi
 		return nil, fmt.Errorf("error iterating users: %w", err)
 	}
 
-	log.Printf("Found %d users matching '%s'", len(users), searchTerm)
+	log.Printf("Found %d users matching '%s' (excluding user %d)", len(users), searchTerm, excludeUserID)
 	return users, nil
 }
