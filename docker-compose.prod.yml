@@ -20,8 +20,7 @@ services:
       context: .
       dockerfile: dockerfiles/nginx.prod.Dockerfile
     ports:
-      - "25565:443"
-      - "80:80"    # Pentru Certbot verification
+      - "25565:80"   # Temporar pentru verificare, apoi schimbi la 443
     depends_on:
       - api
     restart: unless-stopped
