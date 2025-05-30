@@ -1,6 +1,9 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
-	import { onMount } from 'svelte';
+    import { onMount, onDestroy } from 'svelte';
+
+    let pollingInterval = null;
+    let isPolling = $state(true);
 
 	let loading = $state(true);
 	let chats:
@@ -133,20 +136,33 @@
         console.log('Final image URL:', imageUrl); // DEBUG
         return imageUrl;
     }
-	onMount(async () => {
-		messageInput = document.querySelector('.message-input') as HTMLTextAreaElement | null;
+    onMount(async () => {
+        messageInput = document.querySelector('.message-input') as HTMLTextAreaElement | null;
 
-		if (messageInput) {
-			messageInput.addEventListener('input', function () {
-				this.style.height = 'auto';
-				const newHeight = Math.min(this.scrollHeight, 120);
-				this.style.height = newHeight + 'px';
-			});
-		}
+        if (messageInput) {
+            messageInput.addEventListener('input', function () {
+                this.style.height = 'auto';
+                const newHeight = Math.min(this.scrollHeight, 120);
+                this.style.height = newHeight + 'px';
+            });
+        }
 
-		await loadEverything();
-		await loadCurrentUser();
-	});
+        await loadEverything();
+        await loadCurrentUser();
+
+        // Start polling after initial load
+        if (isPolling) {
+            pollingInterval = setInterval(() => {
+                // Only poll if no modals are open to avoid interference
+                if (!show_new_chat_popover && !show_profile_modal) {
+                    loadEverything(true); // true indicates this is a polling call
+                    if (selected_chat) {
+                        loadChatMessages(true);
+                    }
+                }
+            }, 500);
+        }
+    });
 
 	// Load current user profile
 	async function loadCurrentUser() {
@@ -419,12 +435,15 @@
 		}
 	}
 
-    async function loadEverything() {
-        loading = true;
-        chats = null;
-        error = null;
-        selected_chat = null;
-        show_new_chat_popover = false;
+    async function loadEverything(isPollingCall = false) {
+        // Only show loading states if this is not a polling call
+        if (!isPollingCall) {
+            loading = true;
+            chats = null;
+            error = null;
+            selected_chat = null;
+            show_new_chat_popover = false;
+        }
 
         try {
             const response = await fetch('/api/chats', {
@@ -464,9 +483,14 @@
 
             chats = chatsData;
         } catch (err) {
-            error = err as Error;
+            // Only set error state if not polling to avoid disrupting UI
+            if (!isPollingCall) {
+                error = err as Error;
+            }
         } finally {
-            loading = false;
+            if (!isPollingCall) {
+                loading = false;
+            }
         }
     }
 
@@ -528,37 +552,43 @@
         }
     }
 
-	async function loadChatMessages() {
-		try {
-			const response = await fetch(`/api/chats/${selected_chat}/messages`, {
-				method: 'GET',
-				headers: {
-					Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
-				}
-			});
+    async function loadChatMessages(isPollingCall = false) {
+        try {
+            const response = await fetch(`/api/chats/${selected_chat}/messages`, {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
+                }
+            });
 
-			if (!response.ok) {
-				throw new Error('Eroare la obținerea mesajelor conversației');
-			}
+            if (!response.ok) {
+                throw new Error('Eroare la obținerea mesajelor conversației');
+            }
 
-			chat_messages = await response.json();
-		} catch (error) {
-			console.error('Error:', error);
-			chat_messages = (error as Error).message;
-		}
-	}
+            const newMessages = await response.json();
 
-	async function loadUserInfo(userId: number) {
-		let data = await fetch(`/api/users?ids=${userId}`, {
-			method: 'GET',
-			headers: {
-				Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
-			}
-		})
+            // Only update if we have new data or if this is not a polling call
+            if (!isPollingCall || JSON.stringify(newMessages) !== JSON.stringify(chat_messages)) {
+                chat_messages = newMessages;
 
-		let parsed = await data.json();
-		return parsed[String(userId)];
-	}
+                // Auto-scroll to bottom if new messages arrived during polling
+                if (isPollingCall) {
+                    setTimeout(() => {
+                        const messagesContainer = document.querySelector('.messages-container');
+                        if (messagesContainer) {
+                            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                        }
+                    }, 50);
+                }
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            // Only set error message if not polling
+            if (!isPollingCall) {
+                chat_messages = (error as Error).message;
+            }
+        }
+    }
 </script>
 
 <div class="chat-layout">
