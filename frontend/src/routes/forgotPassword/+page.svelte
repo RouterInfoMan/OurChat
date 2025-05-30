@@ -34,18 +34,33 @@
 				body: JSON.stringify({ email })
 			});
 
-			const data = await response.json();
+            if (!response.ok) {
+                let errorMessage;
 
-			if (!response.ok) {
-				throw new Error(data.message || 'Eroare la procesarea cererii');
-			}
+                try {
+                    const contentType = response.headers.get('Content-Type');
+
+                    if (contentType?.includes('application/json')) {
+                        const errorData = await response.json();
+                        errorMessage = errorData.message || errorData.error;
+                    } else {
+                        errorMessage = await response.text();
+                    }
+                } catch (parseError) {
+                    errorMessage = response.statusText;
+                }
+
+                throw new Error(errorMessage || `Eroare ${response.status}`);
+            }
+
+            const data = await response.json();
 
 			successMessage = 'Un email pentru resetarea parolei a fost trimis la adresa indicată.';
 			console.log('Email trimis cu succes:', data);
 			// If token exists, redirect immediately to /newpassword with token
 			if (data.token) {
 				console.log(`Received token: ${data.token}`);
-				
+
 				setTimeout(() => {
 					goto(`/newPassword?token=${encodeURIComponent(data.token)}`);
 				}, 1500);

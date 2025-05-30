@@ -28,16 +28,26 @@
 				body: JSON.stringify({ username, password })
 			});
 
-			const data = await response.json();
+            if (!response.ok) {
+                let errorMessage;
 
+                try {
+                    const contentType = response.headers.get('Content-Type');
 
-			if (!response.ok) {
-				if (response.headers.get('Content-Type')?.includes('application/json')) {
-					throw new Error(data.message || 'Eroare la autentificare');
-				} else {
-					throw new Error('Eroare la autentificare. Verificați mesajul de eroare de la server');
-				}
-			}
+                    if (contentType?.includes('application/json')) {
+                        const errorData = await response.json();
+                        errorMessage = errorData.message || errorData.error;
+                    } else {
+                        errorMessage = await response.text();
+                    }
+                } catch (parseError) {
+                    errorMessage = response.statusText;
+                }
+
+                throw new Error(errorMessage || `Eroare ${response.status}`);
+            }
+
+            const data = await response.json();
 
 			// On successful login, store the JWT token and redirect to the dashboard
 			if (data.token) {

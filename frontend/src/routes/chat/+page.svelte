@@ -163,6 +163,12 @@
             }, 500);
         }
     });
+    onDestroy(() => {
+        if (pollingInterval) {
+            clearInterval(pollingInterval);
+            pollingInterval = null;
+        }
+    });
 
 	// Load current user profile
 	async function loadCurrentUser() {
@@ -496,7 +502,6 @@
 
     async function loadChat() {
         selected_chat_data = true;
-        loadChatMessages();
 
         try {
             // Încarcă detaliile chat-ului
@@ -546,9 +551,42 @@
 
             console.log('Final chat data:', chatData); // DEBUG
             selected_chat_data = chatData;
+
+            // DOAR DUPĂ ce ai setat chat data, încarcă mesajele
+            await loadChatMessages();
+
         } catch (error) {
             console.error('Error:', error);
             selected_chat_data = false;
+        }
+    }
+
+    async function loadUserInfo(userId: number) {
+        try {
+            const response = await fetch(`/api/users?ids=${userId}`, {
+                method: 'GET',
+                headers: {
+                    Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('Failed to load user info');
+            }
+
+            const data = await response.json();
+            const userInfo = data[String(userId)];
+
+            // Adaugă URL-ul complet pentru poza de profil dacă există
+            if (userInfo && userInfo.profile_picture_url) {
+                // Asumând că API-ul returnează URL-ul complet sau path-ul relativ
+                userInfo.profile_picture_url = userInfo.profile_picture_url;
+            }
+
+            return userInfo || { username: 'Unknown User', profile_picture_url: null };
+        } catch (error) {
+            console.error('Error loading user info:', error);
+            return { username: 'Unknown User', profile_picture_url: null };
         }
     }
 
@@ -567,12 +605,20 @@
 
             const newMessages = await response.json();
 
-            // Only update if we have new data or if this is not a polling call
-            if (!isPollingCall || JSON.stringify(newMessages) !== JSON.stringify(chat_messages)) {
+            // Schimbă logica de comparare
+            if (!isPollingCall) {
                 chat_messages = newMessages;
+            } else {
+                // Pentru polling, verifică doar dacă lungimea s-a schimbat sau ultimul mesaj
+                const currentLength = Array.isArray(chat_messages) ? chat_messages.length : 0;
+                const newLength = newMessages.length;
 
-                // Auto-scroll to bottom if new messages arrived during polling
-                if (isPollingCall) {
+                if (newLength !== currentLength ||
+                    (newLength > 0 && currentLength > 0 &&
+                    newMessages[newLength - 1].id !== chat_messages[currentLength - 1].id)) {
+                    chat_messages = newMessages;
+
+                    // Auto-scroll to bottom if new messages arrived during polling
                     setTimeout(() => {
                         const messagesContainer = document.querySelector('.messages-container');
                         if (messagesContainer) {
@@ -582,7 +628,7 @@
                 }
             }
         } catch (error) {
-            console.error('Error:', error);
+            console.error('Error loading chat messages:', error);
             // Only set error message if not polling
             if (!isPollingCall) {
                 chat_messages = (error as Error).message;
@@ -719,45 +765,56 @@
                         </div>
                     </div>
 
-					<div class="messages-container">
-						{#if typeof chat_messages === 'string'}
-							<div class="error-in-chat">
-								<p>Eroare la încărcarea mesajelor: {chat_messages}</p>
-							</div>
-						{:else if chat_messages === null}
-							<div class="loading-messages">
-								<div class="loading-spinner small"></div>
-								<p>Se încarcă mesajele...</p>
-							</div>
-						{:else if chat_messages.length === 0}
-							<div class="empty-chat">
-								<p>Nu există mesaje încă. Începe conversația!</p>
-							</div>
-						{:else}
-							{#each [...chat_messages].reverse() as message}
-								<div class={message.sender_id === current_user?.id ? 'message-sent' : 'message-received'}>
-									{#if selected_chat_data.type === 'group' && message.sender_id !== current_user?.id}
-										<div class="message-sender-div">
-											{#await loadUserInfo(message.sender_id)}
-											{:then userInfo}
-												<span class="message-sender">{userInfo.username}</span>
-											{/await}
-										</div>
-									{/if}
-									<div class="message-bubble">{message.content}</div>
-									<div class="message-info">
-										<span class="message-time"
-											>{new Date(message.created_at).toLocaleTimeString([], {
-												hour: '2-digit',
-												minute: '2-digit'
-											})}</span
-										>
-										<span class="read-receipt delivered">Livrat</span>
-									</div>
-								</div>
-							{/each}
-						{/if}
-					</div>
+                    <div class="messages-container">
+                        {#if typeof chat_messages === 'string'}
+                            <div class="error-in-chat">
+                                <p>Eroare la încărcarea mesajelor: {chat_messages}</p>
+                            </div>
+                        {:else if chat_messages === null}
+                            <div class="loading-messages">
+                                <div class="loading-spinner small"></div>
+                                <p>Se încarcă mesajele...</p>
+                            </div>
+                        {:else if chat_messages.length === 0}
+                            <div class="empty-chat">
+                                <p>Nu există mesaje încă. Începe conversația!</p>
+                            </div>
+                        {:else}
+                            {#each [...chat_messages].reverse() as message}
+                                <div class={message.sender_id === current_user?.id ? 'message-sent' : 'message-received'}>
+                                    {#if selected_chat_data.type === 'group' && message.sender_id !== current_user?.id}
+                                        <div class="message-sender-div">
+                                            {#await loadUserInfo(message.sender_id)}
+                                                <div class="message-avatar">
+                                                    <img src="/default-avatar.png" alt="Loading..." class="loading" />
+                                                </div>
+                                                <span class="message-sender">Loading...</span>
+                                            {:then userInfo}
+                                                <div class="message-avatar">
+                                                    {#await getProfileImageUrl(userInfo.profile_picture_url, `message_${message.sender_id}_${message.id}`)}
+                                                        <img src="/default-avatar.png" alt="Loading..." class="loading" />
+                                                    {:then imageUrl}
+                                                        <img src={imageUrl} alt={userInfo.username} />
+                                                    {/await}
+                                                </div>
+                                                <span class="message-sender">{userInfo.username}</span>
+                                            {/await}
+                                        </div>
+                                    {/if}
+                                    <div class="message-bubble">{message.content}</div>
+                                    <div class="message-info">
+                                        <span class="message-time"
+                                            >{new Date(message.created_at).toLocaleTimeString([], {
+                                                hour: '2-digit',
+                                                minute: '2-digit'
+                                            })}</span
+                                        >
+                                        <span class="read-receipt delivered">Livrat</span>
+                                    </div>
+                                </div>
+                            {/each}
+                        {/if}
+                    </div>
 
 					<div class="message-input-area">
 						<button class="attachment-btn" title="Atașează un fișier">
@@ -1507,29 +1564,39 @@
 		stroke-width: 0;
 	}
 
-	.message-sender-div {
-		display: flex;
-		align-items: center;
-		gap: 8px;
-		margin-bottom: 6px;
-	}
+    .message-sender-div {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
 
-	.message-sender-div .message-avatar {
-		width: 24px;
-		height: 24px;
-		border-radius: 50%;
-		overflow: hidden;
-	}
-	.message-sender-div .message-avatar img {
-		width: 100%;
-		height: 100%;
-		object-fit: cover;
-	}
-	.message-sender-div .message-sender {
-		font-size: 12px;
-		color: rgba(255, 255, 255, 0.8);
-		font-weight: 500;
-	}
+    .message-sender-div .message-avatar {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        flex-shrink: 0;
+    }
+
+    .message-sender-div .message-avatar img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        object-position: center;
+    }
+
+    .message-sender-div .message-avatar img.loading {
+        opacity: 0.5;
+        filter: blur(1px);
+    }
+
+    .message-sender-div .message-sender {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.8);
+        font-weight: 500;
+    }
 
 	.message-input {
 		flex: 1;
@@ -2137,4 +2204,6 @@
 			text-align: center;
 		}
 	}
+
+
 </style>
