@@ -1437,26 +1437,33 @@
 		margin: 0;
 	}
 
-	/* Message bubbles */
-	.message-bubble {
-		padding: 12px 16px;
-		border-radius: 18px;
-		max-width: 100%;
-		word-wrap: break-word;
-		overflow-wrap: break-word;
-		word-break: break-word;
-		box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-	}
+    .message-sent {
+        align-self: flex-end;
+        max-width: 70%;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end; /* Bubble-ul și info-ul la dreapta */
+    }
 
-	.message-sent {
-		align-self: flex-end;
-		max-width: 70%;
-	}
+    .message-received {
+        align-self: flex-start;
+        max-width: 70%;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start; /* Bubble-ul și info-ul la stânga */
+    }
 
-	.message-received {
-		align-self: flex-start;
-		max-width: 70%;
-	}
+    .message-bubble {
+        padding: 12px 16px;
+        border-radius: 18px;
+        width: fit-content; /* Bubble-ul să se adapteze la conținut */
+        max-width: 100%;
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        word-break: break-word;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
 
 	.message-sent .message-bubble {
 		background: linear-gradient(135deg, #5977ff 0%, #4a68eb 100%);
@@ -1478,14 +1485,16 @@
 		margin-top: 4px;
 	}
 
-	.message-sent .message-info {
-		justify-content: flex-end;
-		padding-right: 8px;
-	}
+    .message-sent .message-info {
+        justify-content: flex-end;
+        padding-right: 8px;
+        align-self: flex-end;
+    }
 
-	.message-received .message-info {
-		padding-left: 8px;
-	}
+    .message-received .message-info {
+        padding-left: 8px;
+        align-self: flex-start;
+    }
 
 	.message-time {
 		margin-right: 6px;
