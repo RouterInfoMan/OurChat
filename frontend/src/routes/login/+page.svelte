@@ -1,12 +1,22 @@
 <script lang="ts">
 	import { goto } from '$app/navigation';
 	import { preventDefault } from 'svelte/legacy';
+    import { onMount } from 'svelte';
 
 	// Variables for form data
 	let username = $state('');
 	let password = $state('');
 	let errorMessage = $state('');
 	let isLoading = $state(false);
+
+    onMount(() => {
+        // Verifică dacă utilizatorul este deja logat
+        const token = localStorage.getItem('jwt_token');
+        if (token) {
+            // Redirectionează direct la dashboard
+            goto('/chat');
+        }
+    });
 
 	// Function to handle form submission
 	async function handleSubmit() {
