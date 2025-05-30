@@ -18,6 +18,7 @@
 		| {
 				id: number;
 				name: string;
+				type: 'direct' | 'group';
 		  }
 		| boolean = $state(false);
 	let chat_messages:
@@ -546,6 +547,18 @@
 			chat_messages = (error as Error).message;
 		}
 	}
+
+	async function loadUserInfo(userId: number) {
+		let data = await fetch(`/api/users?ids=${userId}`, {
+			method: 'GET',
+			headers: {
+				Authorization: `Bearer ${localStorage.getItem('jwt_token')}`
+			}
+		})
+
+		let parsed = await data.json();
+		return parsed[String(userId)];
+	}
 </script>
 
 <div class="chat-layout">
@@ -693,6 +706,14 @@
 						{:else}
 							{#each [...chat_messages].reverse() as message}
 								<div class={message.sender_id === current_user?.id ? 'message-sent' : 'message-received'}>
+									{#if selected_chat_data.type === 'group' && message.sender_id !== current_user?.id}
+										<div class="message-sender-div">
+											{#await loadUserInfo(message.sender_id)}
+											{:then userInfo}
+												<span class="message-sender">{userInfo.username}</span>
+											{/await}
+										</div>
+									{/if}
 									<div class="message-bubble">{message.content}</div>
 									<div class="message-info">
 										<span class="message-time"
@@ -1454,6 +1475,30 @@
 	.send-btn svg {
 		fill: currentColor;
 		stroke-width: 0;
+	}
+
+	.message-sender-div {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 6px;
+	}
+
+	.message-sender-div .message-avatar {
+		width: 24px;
+		height: 24px;
+		border-radius: 50%;
+		overflow: hidden;
+	}
+	.message-sender-div .message-avatar img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	.message-sender-div .message-sender {
+		font-size: 12px;
+		color: rgba(255, 255, 255, 0.8);
+		font-weight: 500;
 	}
 
 	.message-input {
