@@ -1504,7 +1504,6 @@
 		min-width: 400px;
 		max-width: 90vw;
 		max-height: 90vh;
-		overflow-y: auto;
 		color: white;
 		border: 1px solid rgba(255, 255, 255, 0.2);
 	}
@@ -1566,13 +1565,14 @@
 
 	.form-group label {
 		display: block;
+		padding-left: 12px;
 		margin-bottom: 8px;
 		font-size: 16px;
 		font-weight: 500;
 	}
 
 	.form-group input {
-		width: 100%;
+		width: calc(100% - 32px);
 		padding: 12px 16px;
 		border-radius: 10px;
 		border: none;
