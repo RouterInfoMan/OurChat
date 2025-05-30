@@ -5,8 +5,6 @@ services:
     build:
       context: .
       dockerfile: dockerfiles/api.Dockerfile
-    ports:
-      - "8080:8080"
     volumes:
       - ./backend/data:/app/data
       - ./backend/uploads:/app/uploads:rw
@@ -14,27 +12,25 @@ services:
       - OURCHAT_SERVER_HOST=0.0.0.0
       - OURCHAT_SERVER_PORT=8080
     restart: unless-stopped
-    develop:
-      watch:
-        - action: rebuild
-          path: ./backend
-          ignore:
-            - "*.db"
-            - "uploads/*"
+    networks:
+      - ourchat-network
 
   nginx:
     build:
       context: .
-      dockerfile: dockerfiles/nginx.Dockerfile
+      dockerfile: dockerfiles/nginx.prod.Dockerfile
     ports:
-      - "80:80"
+      - "25565:443"  # Portul tău public 25565 -> HTTPS intern 443
+      - "80:80"      # Pentru Certbot verification
     depends_on:
       - api
     restart: unless-stopped
-    develop:
-      watch:
-        - action: rebuild
-          path: ./frontend
-          ignore:
-            - build
-            - node_modules
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt:ro
+      - ./certbot/www:/var/www/certbot:ro
+    networks:
+      - ourchat-network
+
+networks:
+  ourchat-network:
+    driver: bridge
