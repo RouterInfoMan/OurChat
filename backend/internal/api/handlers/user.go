@@ -236,7 +236,7 @@ func (h *UserHandler) HandleGetUsersByIDs(w http.ResponseWriter, r *http.Request
 // HandleSearchUsers searches for users by partial username match
 func (h *UserHandler) HandleSearchUsers(w http.ResponseWriter, r *http.Request) {
 	// Get user ID from context (set by auth middleware)
-	_, ok := r.Context().Value("user_id").(int)
+	currentUserID, ok := r.Context().Value("user_id").(int)
 	if !ok {
 		http.Error(w, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -265,8 +265,8 @@ func (h *UserHandler) HandleSearchUsers(w http.ResponseWriter, r *http.Request) 
 		}
 	}
 
-	// Search for users
-	users, err := h.DB.SearchUsersByName(strings.TrimSpace(searchTerm), limit)
+	// Search for users, excluding current user
+	users, err := h.DB.SearchUsersByName(strings.TrimSpace(searchTerm), limit, currentUserID)
 	if err != nil {
 		log.Printf("Failed to search users: %v", err)
 		http.Error(w, "Failed to search users", http.StatusInternalServerError)
