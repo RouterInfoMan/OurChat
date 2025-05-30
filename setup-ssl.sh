@@ -2,31 +2,63 @@
 
 echo "Setting up SSL certificates for serverpoli.go.ro..."
 
-# Create directories
+# Creează directoarele necesare
 mkdir -p certbot/conf certbot/www
 
-# Start nginx pentru initial setup
-echo "Starting nginx for certificate verification..."
-docker compose -f docker-compose.prod.yml up -d nginx
+# Înlocuiește email-ul cu al tău
+EMAIL="your-email@example.com"  # SCHIMBĂ ASTA!
+DOMAIN="serverpoli.go.ro"
 
-sleep 10
+echo "Step 1: Building containers..."
+docker compose -f docker-compose.prod.yml build
 
-# Get SSL certificate cu certbot standalone (mai simplu)
-echo "Getting SSL certificate..."
+echo "Step 2: Starting nginx for certificate verification..."
+docker compose -f docker-compose.prod.yml up -d
+
+echo "Step 3: Waiting for services to start..."
+sleep 20
+
+echo "Step 4: Testing if nginx is accessible..."
+curl -f http://localhost:80 || echo "Warning: nginx might not be ready"
+
+echo "Step 5: Requesting SSL certificate for $DOMAIN..."
 docker run -it --rm \
     -v $(pwd)/certbot/conf:/etc/letsencrypt \
     -v $(pwd)/certbot/www:/var/www/certbot \
-    -p 80:80 \
+    --network ourchat_ourchat-network \
     certbot/certbot certonly \
     --webroot \
     --webroot-path=/var/www/certbot \
-    --email andreirotaru366@gmail.com \
+    --email $EMAIL \
     --agree-tos \
     --no-eff-email \
-    -d serverpoli.go.ro
+    --dry-run \
+    -d $DOMAIN
 
-# Restart cu SSL
-echo "Restarting with SSL..."
-docker compose -f docker-compose.prod.yml restart nginx
+if [ $? -eq 0 ]; then
+    echo "Dry run successful! Running actual certificate request..."
+    docker run -it --rm \
+        -v $(pwd)/certbot/conf:/etc/letsencrypt \
+        -v $(pwd)/certbot/www:/var/www/certbot \
+        --network ourchat_ourchat-network \
+        certbot/certbot certonly \
+        --webroot \
+        --webroot-path=/var/www/certbot \
+        --email $EMAIL \
+        --agree-tos \
+        --no-eff-email \
+        -d $DOMAIN
 
-echo "Done! Access: https://serverpoli.go.ro:25565"
+    if [ $? -eq 0 ]; then
+        echo "Certificate obtained successfully!"
+        echo "Restarting nginx with SSL..."
+        docker compose -f docker-compose.prod.yml restart nginx
+        echo "Done! Your site should be accessible at https://$DOMAIN:25565"
+    else
+        echo "Certificate request failed!"
+        exit 1
+    fi
+else
+    echo "Dry run failed! Check your configuration."
+    exit 1
+fi

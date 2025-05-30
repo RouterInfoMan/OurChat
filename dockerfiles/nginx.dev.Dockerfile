@@ -19,7 +19,7 @@ FROM nginx:alpine
 COPY --from=build /app/build /usr/share/nginx/html
 
 # Copy nginx configuration
-COPY dockerfiles/nginx.conf /etc/nginx/conf.d/default.conf
+COPY dockerfiles/nginx.dev.conf /etc/nginx/conf.d/default.conf
 
 # Expose port 80
 EXPOSE 80
