@@ -632,7 +632,7 @@
 		<!-- Sidebar-ul cu lista de conversații -->
 		<div class="sidebar-conversations">
 			<div class="conversations-header">
-				<h2>Conversations</h2>
+				<h2>Conversații</h2>
 			</div>
 
 			<div class="conversation-list">
@@ -657,7 +657,7 @@
                         </div>
                         <div class="conv-details">
                             <h3>{chat.name}</h3>
-                            <p>Click to open chat</p>
+                            <p>Apasă pentru a deschide</p>
                         </div>
                     </div>
                 {/each}
@@ -730,7 +730,7 @@
 					</div>
 
 					<div class="message-input-area">
-						<button class="attachment-btn" title="Attach File">
+						<button class="attachment-btn" title="Atașează un fișier">
 							<svg viewBox="0 0 24 24" width="24" height="24"
 								><path
 									d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"
@@ -739,7 +739,7 @@
 						</button>
 						<textarea
 							bind:value={currentMessageText}
-							placeholder="Type a message..."
+							placeholder="Tastează mesajul..."
 							class="message-input"
 							rows="1"
 							onkeypress={(e) => {
@@ -749,7 +749,7 @@
 								}
 							}}
 						></textarea>
-						<button class="send-btn" onclick={sendMessage} disabled={isSending} title="Send Message">
+						<button class="send-btn" onclick={sendMessage} disabled={isSending} title="Trimite mesajul">
 							{#if isSending}
 								<div class="loading-spinner tiny"></div>
 							{:else}
@@ -777,8 +777,8 @@
 			<div class="welcome-chat">
 				<div class="welcome-content">
 					<img src="/ourchat_logo.png" alt="OurChat Logo" class="welcome-logo" />
-					<h2>Welcome to OurChat!</h2>
-					<p>Select a conversation from the left sidebar to start chatting, or create a new chat using the + button.</p>
+					<h2>OurChat</h2>
+					<p>Alege o conversație din panoul din stânga sau crează una nouă cu butonul +.</p>
 				</div>
 			</div>
 		{/if}
@@ -789,7 +789,7 @@
 {#if show_new_chat_popover}
 	<div class="popover-overlay">
 		<div class="popover-content large">
-			<h3>Create New Chat</h3>
+			<h3>Crează o conversație nouă</h3>
 
 			<!-- Chat Type Selection -->
 			<div class="chat-type-selector">
@@ -801,7 +801,7 @@
 						<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
 						<circle cx="12" cy="7" r="4"></circle>
 					</svg>
-					Direct Chat
+					Chat Direct
 				</button>
 				<button
 					class="type-btn {chat_type === 'group' ? 'active' : ''}"
@@ -813,18 +813,18 @@
 						<path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
 						<path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
 					</svg>
-					Group Chat
+					Grup de Chat
 				</button>
 			</div>
 
 			<!-- Group Name Input (only for group chats) -->
 			{#if chat_type === 'group'}
 				<div class="form-group">
-					<label>Group Name:</label>
+					<label>Numele grupului:</label>
 					<input
 						type="text"
 						bind:value={group_name}
-						placeholder="Enter group name..."
+						placeholder="Introdu numele grupului..."
 						class="group-name-input"
 					/>
 				</div>
@@ -832,12 +832,12 @@
 
 			<!-- User Search -->
 			<div class="form-group">
-				<label>Search Users {chat_type === 'direct' ? '(select 1)' : '(select multiple)'}:</label>
+				<label>Caută utilizatori {chat_type === 'direct' ? '(alege 1)' : '(alege mai mulți)'}:</label>
 				<div class="search-container">
 					<input
 						type="text"
 						bind:value={user_search_query}
-						placeholder="Type username to search..."
+						placeholder="Tastează numele de utilizator pentru a căuta..."
 						oninput={searchUsers}
 						class="user-search-input"
 					/>
@@ -912,9 +912,9 @@
 				<button class="primary-btn" onclick={createChat} disabled={new_chat_creating === true}>
 					{#if new_chat_creating === true}
 						<div class="loading-spinner tiny"></div>
-						Creating...
+						Se crează...
 					{:else}
-						Create Chat
+						Crează conversație
 					{/if}
 				</button>
 				<button
@@ -922,12 +922,12 @@
 					onclick={() => {
 						show_new_chat_popover = false;
 						resetChatCreation();
-					}}>Cancel</button
+					}}>Anulează</button
 				>
 			</div>
 			{#if typeof new_chat_creating === 'string'}
 				<div class="popover-error">
-					Error: {new_chat_creating}
+					Eroare: {new_chat_creating}
 				</div>
 			{/if}
 		</div>
@@ -938,13 +938,13 @@
 {#if show_profile_modal}
 	<div class="popover-overlay">
 		<div class="popover-content">
-			<h3>Profile Settings</h3>
+			<h3>Setările profilului</h3>
 
 			{#if current_user}
 				<div class="profile-info">
 					<div class="current-profile-picture">
 						{#await getProfileImageUrl(current_user.profile_picture_url, `modal_${current_user.id}`)}
-							<img src="/default-avatar.png" alt="Loading..." class="loading" />
+							<img src="/default-avatar.png" alt="Se încarcă..." class="loading" />
 						{:then imageUrl}
 							<img src={imageUrl} alt="Current Profile" />
 						{/await}
@@ -957,7 +957,7 @@
 				</div>
 
 				<div class="form-group">
-					<label for="profile-picture-input">Change Profile Picture:</label>
+					<label for="profile-picture-input">Schimbă poza de profil:</label>
 					<input
 						type="file"
 						id="profile-picture-input"
@@ -967,13 +967,13 @@
 					/>
 					{#if profile_picture_file}
 						<div class="file-selected">
-							<span>Selected: {profile_picture_file.name}</span>
+							<span>Selectat: {profile_picture_file.name}</span>
 							<button class="upload-btn" onclick={uploadProfilePicture} disabled={uploading_picture}>
 								{#if uploading_picture}
 									<div class="loading-spinner tiny"></div>
-									Uploading...
+									Se încarcă...
 								{:else}
-									Upload
+									Încarcă
 								{/if}
 							</button>
 						</div>
@@ -988,14 +988,14 @@
 			{/if}
 
 			<div class="popover-actions">
-				<button class="secondary-btn" onclick={() => goto('/')}>Go to Dashboard</button>
+				<button class="secondary-btn" onclick={() => goto('/')}>Mergi la Dashboard</button>
 				<button
 					class="secondary-btn"
 					onclick={() => {
 						show_profile_modal = false;
 						profile_update_message = '';
 						profile_picture_file = null;
-					}}>Close</button
+					}}>Închide</button
 				>
 			</div>
 		</div>
