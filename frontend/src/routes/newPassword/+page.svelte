@@ -43,12 +43,26 @@
 				body: JSON.stringify({ token, new_password: newPassword })
 			});
 
-			const data = await response.json();
+            if (!response.ok) {
+                let errorMessage;
 
-			if (!response.ok) {
-				throw new Error(data.message || 'Eroare la resetarea parolei');
-			}
+                try {
+                    const contentType = response.headers.get('Content-Type');
 
+                    if (contentType?.includes('application/json')) {
+                        const errorData = await response.json();
+                        errorMessage = errorData.message || errorData.error;
+                    } else {
+                        errorMessage = await response.text();
+                    }
+                } catch (parseError) {
+                    errorMessage = response.statusText;
+                }
+
+                throw new Error(errorMessage || `Eroare ${response.status}`);
+            }
+
+            const data = await response.json();
 			successMessage = 'Parola a fost resetată cu succes.';
 			setTimeout(() => goto('/login'), 2000);
 		} catch (error: any) {
@@ -57,7 +71,7 @@
 			isLoading = false;
 		}
 	}
-	
+
 	// Function for navigating back to login
 	function goToLogin() {
 		goto('login');

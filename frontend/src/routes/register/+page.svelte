@@ -45,11 +45,26 @@
 				body: JSON.stringify({ username, email, password })
 			});
 
-			const data = await response.json();
+            if (!response.ok) {
+                let errorMessage;
 
-			if (!response.ok) {
-				throw new Error(data.message || 'Eroare la înregistrare');
-			}
+                try {
+                    const contentType = response.headers.get('Content-Type');
+
+                    if (contentType?.includes('application/json')) {
+                        const errorData = await response.json();
+                        errorMessage = errorData.message || errorData.error;
+                    } else {
+                        errorMessage = await response.text();
+                    }
+                } catch (parseError) {
+                    errorMessage = response.statusText;
+                }
+
+                throw new Error(errorMessage || `Eroare ${response.status}`);
+            }
+
+            const data = await response.json();
 
 			// If successful, redirect to login page
 			goto('login');

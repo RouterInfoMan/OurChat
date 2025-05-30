@@ -103,7 +103,7 @@ func (db *DB) GetMessagesByChatIDWithMedia(chatID int, limit, offset int) ([]mod
 	}
 	defer rows.Close()
 
-	var messages []models.Message
+	messages := make([]models.Message, 0)
 	for rows.Next() {
 		var message models.Message
 		var mediaFileID, mediaID sql.NullInt64

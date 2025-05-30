@@ -250,8 +250,8 @@ func (h *UserHandler) HandleSearchUsers(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Validate minimum search length (prevent too broad searches)
-	if len(strings.TrimSpace(searchTerm)) < 4 {
-		http.Error(w, "Search query must be at least 4 characters long", http.StatusBadRequest)
+	if len(strings.TrimSpace(searchTerm)) < 3 {
+		http.Error(w, "Search query must be at least 3 characters long", http.StatusBadRequest)
 		return
 	}
 
