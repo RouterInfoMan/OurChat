@@ -162,6 +162,7 @@ func (db *DB) GetDirectChatBetweenUsers(userID1, userID2 int) (int, error) {
 }
 
 // GetChatMembers returns all users who are members of a specific chat
+// GetChatMembers returns all users who are members of a specific chat
 func (db *DB) GetChatMembers(chatID int) ([]models.ChatMember, error) {
 	query := `
     SELECT cm.id, cm.user_id, cm.chat_id, cm.role, cm.joined_at, cm.last_read_at,
@@ -181,6 +182,7 @@ func (db *DB) GetChatMembers(chatID int) ([]models.ChatMember, error) {
 	for rows.Next() {
 		var member models.ChatMember
 		var lastReadAt sql.NullTime
+		var profilePictureURL sql.NullString
 
 		err := rows.Scan(
 			&member.ID,
@@ -191,7 +193,7 @@ func (db *DB) GetChatMembers(chatID int) ([]models.ChatMember, error) {
 			&lastReadAt,
 			&member.Username,
 			&member.Status,
-			&member.ProfilePictureURL,
+			&profilePictureURL,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan chat member: %w", err)
@@ -199,6 +201,10 @@ func (db *DB) GetChatMembers(chatID int) ([]models.ChatMember, error) {
 
 		if lastReadAt.Valid {
 			member.LastReadAt = &lastReadAt.Time
+		}
+
+		if profilePictureURL.Valid {
+			member.ProfilePictureURL = &profilePictureURL.String
 		}
 
 		members = append(members, member)
